@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TrustedNetworx Partner Hub
+
+White-label partner enablement portal for TrustedNetworx — managed telecom solutions (POTS replacement, hosted voice/UCaaS, connectivity, wireless failover).
+
+## Stack
+
+- **Next.js 16** (App Router)
+- **React 19**
+- **Tailwind CSS v4**
+- **TypeScript**
+- **Supabase** (Postgres + Auth + Storage + RLS)
+- **Recharts** (engagement charts)
+- **lucide-react** (icons)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
+cp .env.example .env.local
+# Fill in your Supabase project URL and anon key
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run the SQL in `supabase/migrations/001_schema.sql` in your Supabase SQL editor to create the schema with Row-Level Security.
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    (dashboard)/
+      layout.tsx        # Shell: sidebar + topbar + AI FAB
+      page.tsx          # Home: hero, onboarding stepper, notifications
+      library/          # Content Library: folders, items, preview, share
+      documentation/    # LMS: section tree, lessons, progress
+      opportunities/    # Pipeline, deal detail, ACV math
+        [id]/           # Individual deal view
+      settings/
+        brand-kit/      # Brand & Company
+        users/          # Team Members
+  components/
+    sidebar.tsx         # Dark navy fixed sidebar
+    topbar.tsx          # Sticky top bar with CTA
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Brand Tokens
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Edit `src/app/globals.css` to change brand colors:
 
-## Deploy on Vercel
+```css
+--color-brand-primary: #00B4D8;   /* Cyan accent */
+--color-sidebar: #0A1428;         /* TrustedNetworx navy */
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+# Deploy dist to Vercel or Netlify
+```
+
+## License
+
+Proprietary — TrustedNetworx Inc.
