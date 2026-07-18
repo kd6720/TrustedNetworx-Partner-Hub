@@ -1,28 +1,71 @@
 "use client";
 
-import { BarChart3, TrendingUp, Users, Target, Phone, Building2, FileText, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3, TrendingUp, Users, Target, Building2, FileText, Phone, Plus } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { createClient } from "@/lib/supabase/client";
 
 export default function CrmPage() {
+  const { profile } = useAuth();
+  const [stats, setStats] = useState({ leads: 0, contacts: 0, companies: 0, won: 0 });
+  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadData() {
+      const [leadsRes, contactsRes, companiesRes, recentRes] = await Promise.all([
+        supabase.from("leads").select("id, status", { count: "exact" }),
+        supabase.from("contacts").select("id", { count: "exact" }),
+        supabase.from("companies").select("id", { count: "exact" }),
+        supabase.from("leads").select("id, name, company_name, status, estimated_value, created_at").order("created_at", { ascending: false }).limit(5),
+      ]);
+
+      const won = leadsRes.data?.filter((l: any) => l.status === "won").length || 0;
+
+      setStats({
+        leads: leadsRes.count || 0,
+        contacts: contactsRes.count || 0,
+        companies: companiesRes.count || 0,
+        won,
+      });
+      setRecentLeads(recentRes.data || []);
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const isAdmin = profile?.role === "admin";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">CRM Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Lead &amp; pipeline management</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isAdmin ? "Admin — Global View" : "CRM Dashboard"}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isAdmin ? "All accounts, all data" : `${profile?.full_name || "Partner"} — your leads`}
+          </p>
         </div>
         <Link href="/crm/leads" className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-brand-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90">
           <Plus size={16} /> Add Lead
         </Link>
       </div>
 
-      {/* Stats */}
+      {isAdmin && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+          🔐 Admin view: You see all accounts and all data. Agents see only their own records.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Leads", value: "247", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Qualified", value: "84", icon: Target, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Pipeline Value", value: "$342K", icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Won This Month", value: "12", icon: BarChart3, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Total Leads", value: stats.leads, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Companies", value: stats.companies, icon: Building2, color: "text-indigo-600", bg: "bg-indigo-50" },
+          { label: "Contacts", value: stats.contacts, icon: Phone, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Won Deals", value: stats.won, icon: BarChart3, color: "text-amber-600", bg: "bg-amber-50" },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3">
@@ -30,7 +73,7 @@ export default function CrmPage() {
                 <s.icon size={20} className={s.color} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{s.value}</p>
+                <p className="text-2xl font-bold text-gray-900">{loading ? "—" : s.value}</p>
                 <p className="text-xs text-gray-500">{s.label}</p>
               </div>
             </div>
@@ -38,7 +81,6 @@ export default function CrmPage() {
         ))}
       </div>
 
-      {/* Quick Links */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Leads", desc: "Track and manage leads", href: "/crm/leads", icon: Target },
@@ -54,45 +96,39 @@ export default function CrmPage() {
         ))}
       </div>
 
-      {/* Recent Leads */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Leads</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs font-medium text-gray-500 uppercase border-b border-gray-100">
-              <th className="pb-3 pr-4">Name</th>
-              <th className="pb-3 pr-4">Company</th>
-              <th className="pb-3 pr-4">Status</th>
-              <th className="pb-3 pr-4">Value</th>
-              <th className="pb-3">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { name: "Metro Health Systems", company: "Metro Health", status: "Qualified", value: "$45,000", date: "Jul 14" },
-              { name: "Sunrise Hospitality", company: "Sunrise Group", status: "New", value: "$28,000", date: "Jul 13" },
-              { name: "Bay Area Education", company: "BAE District", status: "Contacted", value: "$62,000", date: "Jul 12" },
-              { name: "Coastal Retail Corp", company: "CRC", status: "Proposal Sent", value: "$89,000", date: "Jul 10" },
-              { name: "Gulf Property Mgmt", company: "GPM", status: "Won", value: "$34,000", date: "Jul 8" },
-            ].map((l, i) => (
-              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
-                <td className="py-3 pr-4 font-medium text-gray-900">{l.name}</td>
-                <td className="py-3 pr-4 text-gray-500">{l.company}</td>
-                <td className="py-3 pr-4">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                    l.status === "Won" ? "bg-green-100 text-green-700" :
-                    l.status === "Qualified" || l.status === "Proposal Sent" ? "bg-blue-100 text-blue-700" :
-                    l.status === "Contacted" ? "bg-amber-100 text-amber-700" :
-                    "bg-gray-100 text-gray-700"
-                  }`}>{l.status}</span>
-                </td>
-                <td className="py-3 pr-4 font-medium">{l.value}</td>
-                <td className="py-3 text-gray-400 text-xs">{l.date}</td>
+      {recentLeads.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Leads</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-gray-500 uppercase border-b border-gray-100">
+                <th className="pb-3 pr-4">Name</th>
+                <th className="pb-3 pr-4">Company</th>
+                <th className="pb-3 pr-4">Status</th>
+                <th className="pb-3 pr-4">Value</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {recentLeads.map((l: any, i: number) => (
+                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-3 pr-4 font-medium text-gray-900">{l.name}</td>
+                  <td className="py-3 pr-4 text-gray-500">{l.company_name || "—"}</td>
+                  <td className="py-3 pr-4">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                      l.status === "won" ? "bg-green-100 text-green-700" :
+                      ["qualified", "proposal_sent"].includes(l.status) ? "bg-blue-100 text-blue-700" :
+                      l.status === "contacted" ? "bg-amber-100 text-amber-700" :
+                      l.status === "lost" ? "bg-red-100 text-red-700" :
+                      "bg-gray-100 text-gray-700"
+                    }`}>{l.status}</span>
+                  </td>
+                  <td className="py-3 pr-4 font-medium">{l.estimated_value ? `$${l.estimated_value.toLocaleString()}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
