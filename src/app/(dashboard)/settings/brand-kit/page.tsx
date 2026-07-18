@@ -1,157 +1,294 @@
 "use client";
 
-import { Upload, Fingerprint } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Palette, Upload, Building2, Eye, Loader2, CheckCircle, AlertCircle, Image } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+const DEFAULTS = { primary: "#06b6d4", accent: "#0891b2", sidebar: "#0f172a" };
 
 export default function BrandKitPage() {
+  const { profile } = useAuth();
+  const supabase = createClient();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [companyName, setCompanyName] = useState("");
+  const [website, setWebsite] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [primaryColor, setPrimaryColor] = useState(DEFAULTS.primary);
+  const [accentColor, setAccentColor] = useState(DEFAULTS.accent);
+  const [sidebarColor, setSidebarColor] = useState(DEFAULTS.sidebar);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const isManager = profile?.role === "admin" || profile?.role === "manager";
+
+  useEffect(() => { loadBranding(); }, [profile?.account_id]);
+
+  function showToast(type: "success" | "error", message: string) {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  async function loadBranding() {
+    if (!profile?.account_id) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("account_branding")
+      .select("*")
+      .eq("account_id", profile.account_id)
+      .single();
+
+    if (data) {
+      setCompanyName(data.company_name_override || "");
+      setLogoUrl(data.logo_url);
+      setPrimaryColor(data.primary_color || DEFAULTS.primary);
+      setAccentColor(data.accent_color || DEFAULTS.accent);
+      setSidebarColor(data.sidebar_color || DEFAULTS.sidebar);
+    }
+    setLoading(false);
+  }
+
+  async function uploadLogo(file: File) {
+    if (!profile?.account_id) return;
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${profile.account_id}/logo.${ext}`;
+
+    setLogoUploading(true);
+    const { data, error } = await supabase.storage
+      .from("branding")
+      .upload(path, file, { upsert: true, cacheControl: "3600" });
+
+    setLogoUploading(false);
+
+    if (error) {
+      showToast("error", error.message || "Failed to upload logo");
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage.from("branding").getPublicUrl(path);
+    return urlData.publicUrl;
+  }
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("error", "Logo must be under 5MB");
+      return;
+    }
+    const url = await uploadLogo(file);
+    if (url) {
+      setLogoUrl(url);
+      showToast("success", "Logo uploaded");
+    }
+  }
+
+  async function saveBranding(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const res = await fetch("/api/account/branding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_name_override: companyName,
+        logo_url: logoUrl,
+        primary_color: primaryColor,
+        accent_color: accentColor,
+        sidebar_color: sidebarColor,
+      }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (data.success) showToast("success", "Branding saved");
+    else showToast("error", data.error || "Failed to save");
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 size={24} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!isManager) {
+    return (
+      <div className="card p-6 max-w-3xl">
+        <div className="text-center py-8">
+          <Building2 size={32} className="text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900">Branding Management</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Only account managers and admins can customize branding. Contact your manager to update the brand kit.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Brand & Company Card */}
-      <div className="card p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">
-          Company Brand
-        </h3>
+      {toast && (
+        <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${
+          toast.type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
+        }`}>
+          {toast.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+          {toast.message}
+        </div>
+      )}
 
-        {/* Logo Upload */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Company Logo
-          </label>
-          <div className="flex items-center gap-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400">
-              <Upload size={24} />
+      <form onSubmit={saveBranding}>
+        {/* Colors */}
+        <div className="card p-6 mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Palette size={20} className="text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">Brand Colors</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { label: "Primary Color", value: primaryColor, set: setPrimaryColor, desc: "Buttons, links, icons" },
+              { label: "Accent Color", value: accentColor, set: setAccentColor, desc: "Hover states, highlights" },
+              { label: "Sidebar Color", value: sidebarColor, set: setSidebarColor, desc: "Navigation background" },
+            ].map(({ label, value, set, desc }) => (
+              <div key={label}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-lg border border-gray-200 flex-shrink-0" style={{ backgroundColor: value }} />
+                  <input
+                    type="color" value={value} onChange={e => set(e.target.value)}
+                    className="h-9 w-9 rounded border-0 cursor-pointer p-0"
+                  />
+                  <input
+                    type="text" value={value} onChange={e => set(e.target.value)}
+                    className="flex-1 rounded-lg border border-gray-300 px-2 py-2 text-sm font-mono"
+                    pattern="^#[0-9a-fA-F]{6}$"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Logo */}
+        <div className="card p-6 mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Image size={20} className="text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">Company Logo</h3>
+          </div>
+          <div className="flex items-center gap-6">
+            <div
+              className="flex h-24 w-24 items-center justify-center rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 cursor-pointer hover:border-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary)] transition-colors overflow-hidden"
+              onClick={() => logoInputRef.current?.click()}
+            >
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo preview" className="h-full w-full object-contain p-2" />
+              ) : logoUploading ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Upload size={24} />
+              )}
             </div>
             <div>
-              <p className="text-sm text-gray-600">
-                Drag and drop your logo here, or click to browse
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                PNG, JPG, or SVG up to 5MB
-              </p>
+              <p className="text-sm text-gray-600">Click to upload your logo</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, or SVG up to 5MB</p>
+              {logoUrl && (
+                <button type="button" onClick={() => { setLogoUrl(null); if (logoInputRef.current) logoInputRef.current.value = ""; }}
+                  className="text-xs text-red-500 hover:text-red-700 mt-2">
+                  Remove logo
+                </button>
+              )}
             </div>
           </div>
+          <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={handleLogoChange} className="hidden" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company Name
-            </label>
-            <input
-              defaultValue="Carter Dewey Partners"
-              disabled
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 text-gray-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Contact your rep to change
-            </p>
+        {/* Company Info */}
+        <div className="card p-6 mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Building2 size={20} className="text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">Company Info</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Website
-            </label>
-            <input
-              defaultValue="trustednetworx.com"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
-            <input
-              defaultValue="305-498-7530"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              defaultValue="carter@trustednetworx.com"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Primary Contact for Co-Branded Materials
-          </label>
-          <select className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
-            <option>Carter Dewey</option>
-          </select>
-        </div>
-
-        <div className="border-t border-gray-200 pt-4 mt-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">
-            Partner Profile
-          </h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Lines Under Management
-              </label>
-              <input
-                type="number"
-                defaultValue={350}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company Display Name</label>
+              <input value={companyName} onChange={e => setCompanyName(e.target.value)}
+                placeholder={profile?.email?.split("@")[1] || "Your Company"}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              <p className="text-xs text-gray-400 mt-1">Shown in sidebar and header</p>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Agent Team Size
-              </label>
-              <input
-                type="number"
-                defaultValue={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+              <input value={website} onChange={e => setWebsite(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Current Voice Platform
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                placeholder="e.g. RingCentral, 8x8"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Verticals Served
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                placeholder="e.g. Senior Living, Hospitality"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
             </div>
           </div>
         </div>
 
-        <button className="mt-6 inline-flex items-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800">
-          Save Company Info
+        {/* Live Preview */}
+        <div className="card p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Eye size={20} className="text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">Live Preview</h3>
+          </div>
+          <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+            {/* Mini sidebar preview */}
+            <div className="flex h-48">
+              <div className="w-48 flex-shrink-0 flex flex-col p-4 gap-3" style={{ backgroundColor: sidebarColor }}>
+                <div className="flex items-center gap-2 mb-2">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="logo" className="h-6 w-6 rounded object-contain bg-white/10" />
+                  ) : (
+                    <div className="h-6 w-6 rounded" style={{ backgroundColor: primaryColor }} />
+                  )}
+                  <span className="text-xs font-semibold text-white truncate">{companyName || "Partner Hub"}</span>
+                </div>
+                {["Dashboard", "Training", "CRM", "Settings"].map((item, i) => (
+                  <div key={item} className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
+                    i === 3 ? "text-white font-medium" : "text-gray-300"
+                  }`} style={i === 3 ? { backgroundColor: primaryColor } : {}}>
+                    <div className="h-2 w-2 rounded-full opacity-50" style={{ backgroundColor: i === 3 ? "white" : "gray" }} />
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-3 w-24 rounded" style={{ backgroundColor: primaryColor, opacity: 0.15 }} />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-16 rounded-lg bg-white border border-gray-100 p-2">
+                      <div className="h-2 w-12 rounded mb-2" style={{ backgroundColor: primaryColor, opacity: 0.2 }} />
+                      <div className="h-2 w-8 rounded" style={{ backgroundColor: accentColor, opacity: 0.15 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" disabled={saving}
+          className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50">
+          {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+          Save Branding
         </button>
-      </div>
-
-      {/* Passkey Card */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Fingerprint size={18} />
-              Passkey Authentication
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Sign in faster and more securely using Touch ID, Face ID, or a
-              device PIN.
-            </p>
-          </div>
-          <button className="inline-flex items-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
-            Set up Passkey
-          </button>
-        </div>
-      </div>
+      </form>
     </div>
   );
 }
