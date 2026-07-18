@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, BookOpen, FileText, Briefcase, Settings,
   ChevronDown, LogOut, Globe, PanelLeftClose, Zap,
-  Target, GraduationCap,
+  Target, GraduationCap, Layout,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -16,6 +16,7 @@ const navItems = [
   { href: "/documentation", label: "Documentation", icon: FileText },
   { href: "/training", label: "Training", icon: GraduationCap },
   { href: "/crm", label: "CRM", icon: Target },
+  { href: "/kanban", label: "Kanban", icon: Layout },
   { href: "/opportunities", label: "Opportunities", icon: Briefcase },
 ];
 

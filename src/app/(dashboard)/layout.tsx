@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   "/crm/forms": "Forms",
   "/crm/leads/[id]": "Lead",
   "/admin": "Admin Panel",
+  "/kanban": "Kanban Board",
   "/opportunities": "Opportunities",
   "/settings/account": "Account",
   "/settings/brand-kit": "Brand & Company",
