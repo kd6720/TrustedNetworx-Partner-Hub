@@ -52,6 +52,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Admin-only routes: verify role server-side
+  if (pathname.startsWith("/admin") || pathname.startsWith("/settings/users")) {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (me?.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
   return response;
 }
 
