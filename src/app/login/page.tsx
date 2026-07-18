@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Zap } from "lucide-react";
 
 export default function LoginPage() {
@@ -72,6 +73,8 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-400">
+          Don&apos;t have access? <Link href="/register" className="text-[var(--color-brand-primary)] hover:underline">Request Access</Link>
+          <span className="mx-2">·</span>
           Partner Hub — TrustedNetworx © 2026
         </p>
       </div>
