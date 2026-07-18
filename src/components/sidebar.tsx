@@ -30,6 +30,7 @@ const navItems = [
 const settingsSubItems = [
   { href: "/settings/brand-kit", label: "Brand & Company" },
   { href: "/settings/users", label: "Team Members" },
+  { href: "/settings/email", label: "Email Connections" },
   { href: "/admin", label: "Admin Panel" },
 ];
 

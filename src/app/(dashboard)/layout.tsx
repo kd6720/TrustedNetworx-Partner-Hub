@@ -22,6 +22,7 @@ const pageTitles: Record<string, string> = {
   "/opportunities": "Opportunities",
   "/settings/brand-kit": "Brand & Company",
   "/settings/users": "Team Members",
+  "/settings/email": "Email Connections",
 };
 
 export default function DashboardLayout({
