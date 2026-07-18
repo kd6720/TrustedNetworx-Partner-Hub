@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Filter, Plus, ChevronRight } from "lucide-react";
+import { Search, Plus, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -14,6 +15,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     async function load() {
@@ -52,7 +54,7 @@ export default function LeadsPage() {
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading leads...</div>
       ) : leads.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">No leads found. {profile?.role === "admin" ? "No leads exist yet in any account." : "Add your first lead to get started."}</div>
+        <div className="text-center py-12 text-gray-400">No leads found.</div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
@@ -67,8 +69,8 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((l: any, i: number) => (
-                <tr key={l.id} className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer">
+              {leads.map((l: any) => (
+                <tr key={l.id} onClick={() => router.push(`/crm/leads/${l.id}`)} className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer">
                   <td className="px-4 py-3 font-medium text-gray-900">{l.name}</td>
                   <td className="px-4 py-3 text-gray-500">{l.company_name || "—"}</td>
                   <td className="px-4 py-3">
