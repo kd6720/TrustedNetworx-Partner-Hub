@@ -3,6 +3,7 @@
 import { CheckCircle2, Circle, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import WorkspaceOverview from "@/components/dashboard/WorkspaceOverview";
 
 const stages = [
   { num: 1, label: "Working with TrustedNetworx", status: "done" as const },
@@ -87,6 +88,9 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* Workspace Overview */}
+      <WorkspaceOverview />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

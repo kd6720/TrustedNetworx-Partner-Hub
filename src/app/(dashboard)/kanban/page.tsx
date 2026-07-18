@@ -11,6 +11,8 @@ import {
   AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowRight, PanelRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import KpiBar from "@/components/kanban/KpiBar";
+import SubtaskSection from "@/components/kanban/SubtaskSection";
 
 interface Board {
   id: string; name: string; color: string; is_favorite: boolean; is_archived: boolean;
@@ -156,6 +158,9 @@ export default function KanbanPage() {
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
+      {/* KPI Status Bar */}
+      <KpiBar />
+
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -384,6 +389,13 @@ export default function KanbanPage() {
                 }
               }} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
             </div>
+
+            {/* Subtasks */}
+            <SubtaskSection
+              taskId={selectedTask.id}
+              boardId={selectedTask.board_id}
+              columnId={selectedTask.column_id}
+            />
 
             {/* Created info */}
             <div className="text-xs text-gray-400 pt-3 border-t border-gray-100">
