@@ -64,7 +64,13 @@ function LoginForm() {
       >
         {loading ? "Signing in..." : "Sign In"}
       </button>
-    </form>
+
+        <div className="text-right mt-2">
+          <Link href="/recovery" className="text-xs text-gray-500 hover:text-[var(--color-brand-primary)]">
+            Forgot password?
+          </Link>
+        </div>
+      </form>
   );
 }
 
