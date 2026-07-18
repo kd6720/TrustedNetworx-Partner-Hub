@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, BookOpen, FileText, Briefcase, Settings,
   ChevronDown, LogOut, Globe, PanelLeftClose, Zap,
-  Target, GraduationCap, Layout,
+  Target, GraduationCap, Bot,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -16,8 +16,13 @@ const navItems = [
   { href: "/documentation", label: "Documentation", icon: FileText },
   { href: "/training", label: "Training", icon: GraduationCap },
   { href: "/crm", label: "CRM", icon: Target },
-  { href: "/kanban", label: "Kanban", icon: Layout },
   { href: "/opportunities", label: "Opportunities", icon: Briefcase },
+];
+
+const automationSubItems = [
+  { href: "/kanban", label: "Kanban Board" },
+  { href: "/kanban/schedules", label: "Schedules" },
+  { href: "/kanban/agents", label: "Agent Connections" },
 ];
 
 const settingsSubItems = [
@@ -34,9 +39,13 @@ export default function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(
     pathname.startsWith("/settings") || pathname.startsWith("/admin")
   );
+  const [automationOpen, setAutomationOpen] = useState(
+    pathname.startsWith("/kanban")
+  );
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) => pathname === href;
+  const isAutomationActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   const linkClass = (href: string) =>
     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -110,8 +119,51 @@ export default function Sidebar() {
           </Link>
         ))}
 
+        {/* ── AI Automation ── */}
+        <div className="pt-3">
+          <div className="px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              AI Automation
+            </span>
+          </div>
+          <button
+            onClick={() => setAutomationOpen(!automationOpen)}
+            className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname.startsWith("/kanban")
+                ? "bg-[var(--color-sidebar-active)] text-white"
+                : "text-gray-300 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
+            }`}
+          >
+            <span className="flex items-center gap-3">
+              <Bot size={18} />
+              <span>AI Automation</span>
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${automationOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {automationOpen && (
+            <div className="ml-9 mt-1 space-y-1">
+              {automationSubItems.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isAutomationActive(href)
+                      ? "text-white bg-[var(--color-sidebar-active)]"
+                      : "text-gray-400 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
+                  }`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Settings with sub-items */}
-        <div>
+        <div className="pt-1">
           <button
             onClick={() => setSettingsOpen(!settingsOpen)}
             className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -149,7 +201,7 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Bottom — user info with dynamic profile */}
+      {/* Bottom — user info */}
       <div className="border-t border-white/10 px-4 py-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-brand-primary)] text-white text-sm font-semibold">
