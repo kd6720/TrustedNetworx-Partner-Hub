@@ -52,6 +52,12 @@ export default function KanbanPage() {
   const [newBoardName, setNewBoardName] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskModalColumnId, setTaskModalColumnId] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [showNewColumn, setShowNewColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
 
   const activeBoard = boards.find(b => b.id === activeBoardId);
 
@@ -116,15 +122,33 @@ export default function KanbanPage() {
     });
   }, [tasks]);
 
-  async function createTask(columnId: string) {
-    const title = prompt("Task title:");
-    if (!title?.trim()) return;
+  function openTaskModal(columnId: string) {
+    setTaskModalColumnId(columnId);
+    setNewTaskTitle("");
+    setNewTaskDesc("");
+    setShowTaskModal(true);
+  }
+
+  async function createTask() {
+    if (!newTaskTitle.trim()) return;
     const res = await fetch("/api/kanban/tasks", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ board_id: activeBoardId, column_id: columnId, title }),
+      body: JSON.stringify({ board_id: activeBoardId, column_id: taskModalColumnId, title: newTaskTitle, description: newTaskDesc }),
     });
     const task = await res.json();
-    if (task.id) setTasks(t => [...t, task]);
+    if (task.id) { setTasks(t => [...t, task]); setShowTaskModal(false); }
+  }
+
+  async function addColumn() {
+    if (!newColumnName.trim() || !activeBoardId) return;
+    const res = await fetch("/api/kanban/boards", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add_column", board_id: activeBoardId, name: newColumnName }),
+    });
+    await res.json();
+    setShowNewColumn(false);
+    setNewColumnName("");
+    loadBoards();
   }
 
   async function updateTask(id: string, updates: Partial<Task>) {
@@ -231,7 +255,7 @@ export default function KanbanPage() {
                     <h3 className="text-sm font-semibold text-gray-700">{column.name}</h3>
                     <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{tasksByColumn(column.id).length}</span>
                   </div>
-                  <button onClick={() => createTask(column.id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600">
+                  <button onClick={() => openTaskModal(column.id)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600">
                     <Plus size={16} />
                   </button>
                 </div>
@@ -282,18 +306,9 @@ export default function KanbanPage() {
             {/* Add Column Button */}
             {activeBoard && (
               <div className="flex-shrink-0 w-72">
-                <button onClick={() => {
-                  const name = prompt("Column name:");
-                  if (name?.trim()) {
-                    fetch("/api/kanban/boards", {
-                      method: "POST", headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ name, board_id: activeBoardId }),
-                    });
-                  }
-                }}
-                  className="w-full h-12 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600 flex items-center justify-center gap-2 text-sm transition-colors">
-                  <Plus size={16} /> Add Column
-                </button>
+              <button onClick={() => setShowNewColumn(true)} className="mt-2 w-full h-12 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-600 flex items-center justify-center gap-2 text-sm transition-colors">
+                <Plus size={16} /> Add Column
+              </button>
               </div>
             )}
           </div>
@@ -410,6 +425,57 @@ export default function KanbanPage() {
           </div>
         </div>
       )}
+
+      {/* Task Creation Modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowTaskModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-50">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Task</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="Task name" autoFocus
+                  onKeyDown={e => e.key === "Enter" && createTask()} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" rows={3} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowTaskModal(false)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={createTask} disabled={!newTaskTitle.trim()}
+                className="px-4 py-2 text-sm bg-[var(--color-brand-primary)] text-white rounded-lg disabled:opacity-50">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Column Modal */}
+      {showNewColumn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowNewColumn(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-50">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Column</h3>
+            <input value={newColumnName} onChange={e => setNewColumnName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-4"
+              placeholder="Column name" autoFocus
+              onKeyDown={e => e.key === "Enter" && addColumn()} />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowNewColumn(false)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancel</button>
+              <button onClick={addColumn} disabled={!newColumnName.trim()}
+                className="px-4 py-2 text-sm bg-[var(--color-brand-primary)] text-white rounded-lg disabled:opacity-50">Add</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

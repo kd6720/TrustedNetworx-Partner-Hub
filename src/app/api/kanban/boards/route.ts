@@ -58,3 +58,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
+
+// PATCH — add column, rename board, etc.
+export async function PATCH(req: NextRequest) {
+  try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json();
+
+    // Add a column
+    if (body.action === "add_column") {
+      const { data: cols } = await supabase.from("kanban_columns")
+        .select("sort_order").eq("board_id", body.board_id)
+        .order("sort_order", { ascending: false }).limit(1);
+      const nextOrder = cols && cols.length > 0 ? cols[0].sort_order + 1 : 0;
+
+      const { data: column, error } = await supabase.from("kanban_columns").insert({
+        board_id: body.board_id,
+        name: body.name,
+        color: COLUMN_COLORS[body.name] || "#6366f1",
+        sort_order: nextOrder,
+      }).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(column);
+    }
+
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+}
+
+const COLUMN_COLORS: Record<string, string> = {
+  Backlog: "#94a3b8", Ready: "#3b82f6", "In Progress": "#f59e0b",
+  "In Review": "#8b5cf6", Completed: "#10b981", Blocked: "#ef4444",
+  Ideas: "#ec4899", Planned: "#06b6d4", Testing: "#f97316",
+  Waiting: "#6b7280", Archived: "#9ca3af",
+};
