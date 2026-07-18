@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Partners table
 CREATE TABLE partners (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name TEXT NOT NULL,
   logo_url TEXT,
   website TEXT,
@@ -22,7 +22,7 @@ CREATE TABLE partners (
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   partner_id UUID REFERENCES partners(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE users (
 
 -- Key contacts
 CREATE TABLE key_contacts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   partner_id UUID REFERENCES partners(id) ON DELETE CASCADE,
   type TEXT CHECK (type IN ('billing', 'support', 'legal')),
   name TEXT,
@@ -44,7 +44,7 @@ CREATE TABLE key_contacts (
 
 -- Content folders
 CREATE TABLE content_folders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
   sort INTEGER DEFAULT 0,
@@ -53,7 +53,7 @@ CREATE TABLE content_folders (
 
 -- Content items
 CREATE TABLE content_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   folder_id UUID REFERENCES content_folders(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -64,7 +64,7 @@ CREATE TABLE content_items (
 
 -- Share links (tracked)
 CREATE TABLE share_links (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   content_item_id UUID REFERENCES content_items(id) ON DELETE CASCADE,
   partner_id UUID REFERENCES partners(id),
   user_id UUID REFERENCES users(id),
@@ -75,7 +75,7 @@ CREATE TABLE share_links (
 
 -- Content views (analytics)
 CREATE TABLE content_views (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   share_link_id UUID REFERENCES share_links(id) ON DELETE CASCADE,
   viewer_fingerprint TEXT,
   viewed_at TIMESTAMPTZ DEFAULT NOW()
@@ -83,14 +83,14 @@ CREATE TABLE content_views (
 
 -- Documentation sections
 CREATE TABLE doc_sections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   sort INTEGER DEFAULT 0
 );
 
 -- Documentation lessons
 CREATE TABLE doc_lessons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   section_id UUID REFERENCES doc_sections(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   subtitle TEXT,
@@ -101,7 +101,7 @@ CREATE TABLE doc_lessons (
 
 -- Lesson progress
 CREATE TABLE lesson_progress (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   lesson_id UUID REFERENCES doc_lessons(id) ON DELETE CASCADE,
   completed_at TIMESTAMPTZ DEFAULT NOW(),
@@ -110,7 +110,7 @@ CREATE TABLE lesson_progress (
 
 -- Deals
 CREATE TABLE deals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   partner_id UUID REFERENCES partners(id),
   company_name TEXT NOT NULL,
   stage TEXT CHECK (stage IN (
@@ -132,7 +132,7 @@ CREATE TABLE deals (
 
 -- Deal stage history
 CREATE TABLE deal_stage_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   deal_id UUID REFERENCES deals(id) ON DELETE CASCADE,
   from_stage TEXT,
   to_stage TEXT,
@@ -141,7 +141,7 @@ CREATE TABLE deal_stage_history (
 
 -- Notifications
 CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   partner_id UUID REFERENCES partners(id),
   user_id UUID REFERENCES users(id),
   type TEXT,
