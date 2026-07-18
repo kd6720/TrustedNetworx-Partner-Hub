@@ -233,6 +233,74 @@ export default function UsersPage() {
         <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-green-500" /> Manager: manage team + branding</span>
         <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-gray-400" /> Partner: standard access</span>
       </div>
+
+      {/* Pending Registrations (Admin only) */}
+      {isAdmin && (
+        <div className="card p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Pending Registrations</h3>
+          <PendingRegistrations />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PendingRegistrations() {
+  const supabase = createClient();
+  const [pending, setPending] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadPending(); }, []);
+
+  async function loadPending() {
+    const { data } = await supabase.from("registration_requests").select("*")
+      .eq("status", "pending").order("created_at", { ascending: false });
+    setPending(data || []);
+    setLoading(false);
+  }
+
+  async function handleApprove(req: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("registration_requests").update({
+      status: "approved", reviewed_by: user?.id, reviewed_at: new Date().toISOString()
+    }).eq("id", req.id);
+    if (req.link) {
+      // Notify admin that user can sign up
+      await supabase.from("notifications").insert({
+        user_id: user?.id,
+        title: `Approved ${req.work_email}`,
+        body: `${req.full_name} from ${req.company} can now register.`,
+      });
+    }
+    loadPending();
+  }
+
+  async function handleReject(req: any) {
+    await supabase.from("registration_requests").update({
+      status: "rejected", reviewed_at: new Date().toISOString()
+    }).eq("id", req.id);
+    loadPending();
+  }
+
+  if (loading) return <div className="text-sm text-gray-400"><Loader2 size={14} className="animate-spin inline" /> Loading...</div>;
+  if (pending.length === 0) return <p className="text-sm text-gray-400">No pending registrations.</p>;
+
+  return (
+    <div className="space-y-3">
+      {pending.map(r => (
+        <div key={r.id} className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">{r.full_name}</p>
+            <p className="text-xs text-gray-500">{r.work_email} · {r.company}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => handleApprove(r)}
+              className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200">Approve</button>
+            <button onClick={() => handleReject(r)}
+              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200">Reject</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
