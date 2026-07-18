@@ -5,64 +5,79 @@ import nodemailer from "nodemailer";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      connection_id, to, subject, body: emailBody,
-      linked_type, linked_id,
-      smtp_host, smtp_port, smtp_user, smtp_password_enc,
-      from_address, from_name,
-    } = body;
+    const { to, subject, body: emailBody, linked_type, linked_id, connection_id } = body;
 
-    if (!smtp_host || !smtp_user || !smtp_password_enc || !to || !subject) {
+    if (!to || !subject || !connection_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Decrypt the password (base64 for now — upgrade to AES in production)
-    const smtpPass = Buffer.from(smtp_password_enc, "base64").toString("utf-8");
+    // Authenticate user
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Look up the connection server-side (credentials never reach the client)
+    const { data: conn } = await supabase
+      .from("email_connections")
+      .select("smtp_host, smtp_port, smtp_user, smtp_password_enc, email_address, display_name")
+      .eq("id", connection_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!conn) {
+      return NextResponse.json({ error: "Email connection not found or not authorized" }, { status: 404 });
+    }
+
+    // Decrypt the password (base64 currently — upgrade to AES-256-GCM in production)
+    const smtpPass = Buffer.from(conn.smtp_password_enc, "base64").toString("utf-8");
 
     // Create transporter
     const transporter = nodemailer.createTransport({
-      host: smtp_host,
-      port: smtp_port,
-      secure: smtp_port === 465,
-      auth: { user: smtp_user, pass: smtpPass },
-      tls: { rejectUnauthorized: false },
+      host: conn.smtp_host,
+      port: conn.smtp_port,
+      secure: conn.smtp_port === 465,
+      auth: { user: conn.smtp_user, pass: smtpPass },
+      // Only disable TLS verification in dev — enable in production
+      tls: { rejectUnauthorized: process.env.NODE_ENV === "production" },
     });
 
     // Send
     await transporter.sendMail({
-      from: from_name ? `"${from_name}" <${from_address}>` : from_address,
+      from: conn.display_name ? `"${conn.display_name}" <${conn.email_address}>` : conn.email_address,
       to,
       subject,
       text: emailBody,
     });
 
     // Log to email_activities
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from("profiles").select("account_id").eq("id", user.id).single();
 
-    if (user) {
-      const { data: profile } = await supabase.from("profiles").select("account_id").eq("id", user.id).single();
-
-      await supabase.from("email_activities").insert({
-        account_id: profile?.account_id,
-        user_id: user.id,
-        connection_id: connection_id || null,
-        direction: "sent",
-        subject,
-        body_text: emailBody,
-        snippet: emailBody?.slice(0, 200) || "",
-        from_address,
-        from_name: from_name || null,
-        to_addresses: [to],
-        linked_type: linked_type || null,
-        linked_id: linked_id || null,
-        status: "sent",
-      });
-    }
+    await supabase.from("email_activities").insert({
+      account_id: profile?.account_id,
+      user_id: user.id,
+      connection_id,
+      direction: "sent",
+      subject,
+      body_text: emailBody,
+      snippet: emailBody?.slice(0, 200) || "",
+      from_address: conn.email_address,
+      from_name: conn.display_name || null,
+      to_addresses: [to],
+      linked_type: linked_type || null,
+      linked_id: linked_id || null,
+      status: "sent",
+    });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Send email error:", error);
-    return NextResponse.json({ error: error.message || "Failed to send email" }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to send email";
+    // Structured logging in production — avoid console.error
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Send email error:", error);
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

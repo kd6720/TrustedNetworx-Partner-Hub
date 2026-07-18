@@ -8,13 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 interface ComposeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Optional pre-fill
   toEmail?: string;
   toName?: string;
   subject?: string;
   linkedType?: "contact" | "lead" | "opportunity" | "company";
   linkedId?: string;
-  linkedName?: string; // for display
+  linkedName?: string;
 }
 
 export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject: initialSubject, linkedType, linkedId, linkedName }: ComposeModalProps) {
@@ -53,51 +52,24 @@ export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject
     setSending(true);
     setError("");
 
-    // Get the connection details
-    const { data: conn } = await supabase.from("email_connections").select("*").eq("id", selectedConnection).single();
-    if (!conn) { setError("Email connection not found."); setSending(false); return; }
-
-    // Send via our API route
+    // Only send connection_id — server looks up credentials securely
     const res = await fetch("/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        connection_id: conn.id,
-        to: to,
+        connection_id: selectedConnection,
+        to,
         subject,
         body,
         linked_type: linkedType,
         linked_id: linkedId,
-        smtp_host: conn.smtp_host,
-        smtp_port: conn.smtp_port,
-        smtp_user: conn.smtp_user,
-        smtp_password_enc: conn.smtp_password_enc,
-        from_address: conn.email_address,
-        from_name: conn.display_name,
       }),
     });
 
-    const result = await res.json();
-    if (result.error) {
-      setError(result.error);
+    if (!res.ok) {
+      const result = await res.json();
+      setError(result.error || "Failed to send");
     } else {
-      // Log the email activity
-      await supabase.from("email_activities").insert({
-        account_id: profile!.account_id,
-        user_id: profile!.id,
-        connection_id: conn.id,
-        direction: "sent",
-        subject,
-        body_text: body,
-        snippet: body.slice(0, 200),
-        from_address: conn.email_address,
-        from_name: conn.display_name,
-        to_addresses: [to],
-        linked_type: linkedType || null,
-        linked_id: linkedId || null,
-        status: "sent",
-      });
-
       onClose();
     }
     setSending(false);
@@ -126,6 +98,14 @@ export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject
                 <option key={c.id} value={c.id}>{c.email_address}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {connections.length === 0 && (
+          <div className="px-5 pt-3">
+            <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+              No email account connected — go to <strong>Settings → Email Connections</strong> to set up sending.
+            </p>
           </div>
         )}
 
@@ -163,7 +143,7 @@ export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-          <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100" aria-label="Attach file">
             <Paperclip size={16} />
           </button>
 

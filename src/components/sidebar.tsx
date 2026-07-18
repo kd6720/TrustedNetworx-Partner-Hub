@@ -4,19 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home,
-  BookOpen,
-  FileText,
-  Briefcase,
-  Settings,
-  ChevronDown,
-  LogOut,
-  Globe,
-  PanelLeftClose,
-  Zap,
-  Target,
-  GraduationCap,
+  Home, BookOpen, FileText, Briefcase, Settings,
+  ChevronDown, LogOut, Globe, PanelLeftClose, Zap,
+  Target, GraduationCap,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
@@ -36,13 +28,13 @@ const settingsSubItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { profile, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(
-    pathname.startsWith("/settings")
+    pathname.startsWith("/settings") || pathname.startsWith("/admin")
   );
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) => pathname === href;
-  const isSettingsActive = (href: string) => pathname === href;
 
   const linkClass = (href: string) =>
     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -51,12 +43,22 @@ export default function Sidebar() {
         : "text-gray-300 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
     }`;
 
+  const displayName = profile?.full_name || profile?.email?.split("@")[0] || "Partner";
+  const initials = displayName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  const roleLabel = profile?.role === "admin" ? "Admin" : profile?.role === "manager" ? "Manager" : "Partner";
+
   if (collapsed) {
     return (
       <aside className="sidebar-bg fixed left-0 top-0 z-40 flex h-screen w-16 flex-col items-center py-4">
         <button
           onClick={() => setCollapsed(false)}
           className="mb-6 text-gray-400 hover:text-white p-1"
+          aria-label="Expand sidebar"
         >
           <PanelLeftClose size={20} />
         </button>
@@ -111,7 +113,7 @@ export default function Sidebar() {
           <button
             onClick={() => setSettingsOpen(!settingsOpen)}
             className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              pathname.startsWith("/settings")
+              pathname.startsWith("/settings") || pathname.startsWith("/admin")
                 ? "bg-[var(--color-sidebar-active)] text-white"
                 : "text-gray-300 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
             }`}
@@ -132,7 +134,7 @@ export default function Sidebar() {
                   key={href}
                   href={href}
                   className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
-                    isSettingsActive(href)
+                    isActive(href)
                       ? "text-white bg-[var(--color-sidebar-active)]"
                       : "text-gray-400 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
                   }`}
@@ -145,17 +147,17 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom — user info with dynamic profile */}
       <div className="border-t border-white/10 px-4 py-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-brand-primary)] text-white text-sm font-semibold">
-            CD
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">
-              Carter Dewey
+              {displayName}
             </p>
-            <p className="text-xs text-gray-400">Partner</p>
+            <p className="text-xs text-gray-400">{roleLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -163,13 +165,17 @@ export default function Sidebar() {
           <span>English</span>
         </div>
         <div className="flex items-center justify-between">
-          <button className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors">
+          <button
+            onClick={signOut}
+            className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors"
+          >
             <LogOut size={14} />
             <span>Sign out</span>
           </button>
           <button
             onClick={() => setCollapsed(true)}
             className="text-gray-400 hover:text-white"
+            aria-label="Collapse sidebar"
           >
             <PanelLeftClose size={16} />
           </button>

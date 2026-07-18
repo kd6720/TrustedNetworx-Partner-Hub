@@ -172,20 +172,27 @@ export default function AdminPage() {
           <form onSubmit={async (e) => {
             e.preventDefault();
             const form = e.target as HTMLFormElement;
-            const inviteEmail = (form.elements.namedItem("inviteEmail") as HTMLInputElement).value;
+            const input = form.elements.namedItem("inviteEmail") as HTMLInputElement;
+            const inviteEmail = input.value;
             if (!inviteEmail) return;
             const domain = inviteEmail.split("@")[1];
-            const { error: err } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-              data: { invited_by: profile?.email }
+            const res = await fetch("/api/admin/invite", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: inviteEmail }),
             });
-            if (err) alert(err.message);
-            else {
-              await supabase.from("pending_registrations").insert({
-                email: inviteEmail, domain, status: "approved",
-                reviewed_by: profile?.id, reviewed_at: new Date().toISOString()
+            const result = await res.json();
+            if (result.error) {
+              alert(result.error);
+            } else {
+              await supabase.from("audit_log").insert({
+                actor_id: profile?.id,
+                actor_email: profile?.email,
+                action: "user_invited",
+                details: { email: inviteEmail },
               });
               alert(`Invite sent to ${inviteEmail}`);
-              (form.elements.namedItem("inviteEmail") as HTMLInputElement).value = "";
+              input.value = "";
             }
           }} className="flex gap-2">
             <input name="inviteEmail" type="email" placeholder="partner@agency.com"

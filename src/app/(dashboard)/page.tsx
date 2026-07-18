@@ -1,6 +1,8 @@
 "use client";
 
-import { CheckCircle2, Circle, ChevronRight, Clock } from "lucide-react";
+import { CheckCircle2, Circle, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 const stages = [
   { num: 1, label: "Working with TrustedNetworx", status: "done" as const },
@@ -11,30 +13,23 @@ const stages = [
   { num: 6, label: "Client Onboarding", status: "future" as const },
 ];
 
-const notifications = [
-  {
-    title: "Battle Card: POTS Replacement was viewed",
-    desc: "A prospect viewed your 'POTS Replacement Battle Card' deck.",
-    date: "2 hours ago",
-  },
-  {
-    title: "New content available: Q3 Product Updates",
-    desc: "Check out the latest product training materials in the Documentation section.",
-    date: "1 day ago",
-  },
-  {
-    title: "Deal moved to Proposal stage",
-    desc: "Sunset Senior Living has advanced to the Proposal stage.",
-    date: "2 days ago",
-  },
-];
-
 export default function HomePage() {
+  const { profile } = useAuth();
+
+  function greeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  }
+
+  const displayName = profile?.full_name || profile?.email?.split("@")[0] || "Partner";
+
   return (
     <div className="space-y-6">
       {/* Hero */}
       <div className="gradient-hero rounded-2xl p-8 md:p-10 text-white">
-        <p className="text-sm text-white/70 mb-2">Good evening, Carter Dewey.</p>
+        <p className="text-sm text-white/70 mb-2">{greeting()}, {displayName}.</p>
         <h1 className="text-3xl md:text-4xl font-bold mb-3">
           Ready to sell TrustedNetworx?
         </h1>
@@ -43,137 +38,79 @@ export default function HomePage() {
           close — all in one place.
         </p>
         <div className="flex flex-wrap gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-sidebar)] hover:bg-gray-100 transition-colors">
+          <Link
+            href="/documentation"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-sidebar)] hover:bg-gray-100 transition-colors"
+          >
             Start the track <ChevronRight size={16} />
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+          </Link>
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+          >
             Library
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+          </Link>
+          <Link
+            href="/opportunities"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 transition-colors"
+          >
             Opportunities
-          </button>
+          </Link>
         </div>
         <p className="text-xs text-white/50 mt-4">
           TrustedNetworx · Partner since 2025
         </p>
       </div>
 
-      {/* Onboarding Progress */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Onboarding Progress
-          </h2>
-          <span className="text-sm text-gray-500">
-            Stage 3 of 6
-          </span>
-        </div>
-
-        {/* Stage stepper */}
-        <div className="flex items-center justify-between mb-8">
-          {stages.map((stage, i) => (
-            <div key={stage.num} className="flex items-center flex-1">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${
-                    stage.status === "done"
-                      ? "bg-[var(--color-brand-primary)] text-white"
-                      : stage.status === "active"
-                      ? "bg-gray-900 text-white ring-4 ring-[var(--color-brand-primary)]/20"
-                      : "bg-gray-100 text-gray-400"
-                  }`}
-                >
-                  {stage.status === "done" ? (
-                    <CheckCircle2 size={20} />
-                  ) : (
-                    stage.num
-                  )}
-                </div>
-                <span className="text-[11px] text-gray-500 mt-1.5 text-center max-w-[80px] leading-tight">
-                  {stage.label}
+      {/* Onboarding tracker */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Onboarding Progress</h2>
+        <div className="space-y-3">
+          {stages.map((s) => (
+            <div key={s.num} className="flex items-center gap-3">
+              {s.status === "done" ? (
+                <CheckCircle2 size={20} className="text-green-500" />
+              ) : s.status === "active" ? (
+                <Circle size={20} className="text-[var(--color-brand-primary)] fill-current" />
+              ) : (
+                <Circle size={20} className="text-gray-300" />
+              )}
+              <span className={`text-sm ${s.status === "future" ? "text-gray-400" : "text-gray-700"}`}>
+                {s.label}
+              </span>
+              {s.status === "active" && (
+                <span className="text-[10px] bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] px-1.5 py-0.5 rounded-full font-medium">
+                  Current
                 </span>
-              </div>
-              {i < stages.length - 1 && (
-                <div
-                  className={`flex-1 h-0.5 mx-2 ${
-                    stage.status === "done"
-                      ? "bg-[var(--color-brand-primary)]"
-                      : "bg-gray-200"
-                  }`}
-                />
               )}
             </div>
           ))}
         </div>
-
-        {/* Active stage details */}
-        <div className="border border-gray-200 rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-sm font-bold text-gray-900">Stage 3</span>
-            <span className="text-sm font-semibold text-gray-900">
-              Product Training
-            </span>
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-              In Progress
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">
-            Learn about TrustedNetworx products — POTS replacement, hosted
-            voice, connectivity, and wireless failover.
-          </p>
-          <div className="space-y-2 mb-4">
-            {[
-              "POTS Replacement Overview",
-              "Hosted Voice / UCaaS",
-              "Connectivity & Failover",
-              "Partner Portal & Provisioning",
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3">
-                {i < 1 ? (
-                  <CheckCircle2 size={18} className="text-green-500" />
-                ) : (
-                  <Circle size={18} className="text-gray-300" />
-                )}
-                <span
-                  className={`text-sm ${i < 1 ? "text-gray-500 line-through" : "text-gray-700"}`}
-                >
-                  {item}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>1/4 completed</span>
-            <div className="flex-1 h-1.5 bg-gray-200 rounded-full max-w-[120px]">
-              <div className="h-full w-1/4 bg-[var(--color-brand-primary)] rounded-full" />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Recent Notifications */}
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Recent Notifications
-        </h2>
-        <div className="space-y-3">
-          {notifications.map((n, i) => (
-            <div
-              key={i}
-              className="flex items-start justify-between py-3 border-b border-gray-100 last:border-0"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{n.desc}</p>
-              </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap ml-4 flex items-center gap-1">
-                <Clock size={12} />
-                {n.date}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Register a Deal", desc: "Submit a new opportunity", href: "/opportunities", icon: "📋" },
+          { label: "Open Content Library", desc: "Sales decks and one-pagers", href: "/library", icon: "📚" },
+          { label: "Complete a Lesson", desc: "Continue your product training", href: "/documentation", icon: "🎓" },
+        ].map((a) => (
+          <Link
+            key={a.label}
+            href={a.href}
+            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group"
+          >
+            <div className="text-2xl mb-2">{a.icon}</div>
+            <h3 className="font-semibold text-gray-900 group-hover:text-[var(--color-brand-primary)]">{a.label}</h3>
+            <p className="text-sm text-gray-500 mt-1">{a.desc}</p>
+          </Link>
+        ))}
       </div>
+
+      {/* Footer */}
+      <p className="text-center text-xs text-gray-400 py-4">
+        TrustedNetworx Partner Hub · Questions? Contact your channel manager.
+      </p>
     </div>
   );
 }

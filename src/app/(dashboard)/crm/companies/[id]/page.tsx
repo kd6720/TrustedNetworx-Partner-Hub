@@ -17,12 +17,13 @@ export default function CompanyDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: co }, { count: lc }, { count: cc }] = await Promise.all([
-        supabase.from("companies").select("*").eq("id", id).single(),
-        supabase.from("leads").select("id", { count: "exact" }).eq("company_name", (await supabase.from("companies").select("name").eq("id", id).single()).data?.name || ""),
-        supabase.from("contacts").select("id", { count: "exact" }).eq("company_id", id),
-      ]);
+      const { data: co } = await supabase.from("companies").select("*").eq("id", id).single();
+      if (!co) { setLoading(false); return; }
       setCompany(co);
+      const [{ count: lc }, { count: cc }] = await Promise.all([
+        supabase.from("leads").select("id", { count: "exact", head: true }).eq("company_name", co.name),
+        supabase.from("contacts").select("id", { count: "exact", head: true }).eq("company_id", id),
+      ]);
       setLeadCount(lc || 0);
       setContactCount(cc || 0);
       setLoading(false);
@@ -61,11 +62,7 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
-      <EmailTimeline
-        linkedType="company"
-        linkedId={id}
-        linkedName={company.name}
-      />
+      <EmailTimeline linkedType="company" linkedId={id} linkedName={company.name} />
     </div>
   );
 }
