@@ -14,12 +14,16 @@ import {
   Globe,
   PanelLeftClose,
   Zap,
+  Target,
+  GraduationCap,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/library", label: "Content Library", icon: BookOpen },
   { href: "/documentation", label: "Documentation", icon: FileText },
+  { href: "/training", label: "Training", icon: GraduationCap },
+  { href: "/crm", label: "CRM", icon: Target },
   { href: "/opportunities", label: "Opportunities", icon: Briefcase },
 ];
 
