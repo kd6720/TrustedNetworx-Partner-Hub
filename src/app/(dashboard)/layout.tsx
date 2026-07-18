@@ -39,6 +39,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading } = useAuth();
   const title = pageTitles[pathname] || "TrustedNetworx Partner Hub";
   const [aiOpen, setAiOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text) return;
+
+    setMessages(m => [...m, { role: "user", content: text }]);
+    setInput("");
+    setSending(true);
+
+    try {
+      const res = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      setMessages(m => [...m, { role: "assistant", content: data.reply || "Sorry, I could not process that." }]);
+    } catch {
+      setMessages(m => [...m, { role: "assistant", content: "The assistant is coming online soon. In the meantime, check the Knowledge Base or contact your TrustedNetworx representative." }]);
+    }
+    setSending(false);
+  }
 
   // Redirect to login if not authenticated (client-side fallback for middleware)
   useEffect(() => {
@@ -85,18 +111,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ✕
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            <p className="text-gray-500 text-sm text-center mt-20">
-              How can I help? Ask me about the Partner Hub, platform, sales materials, pricing, or anything about TrustedNetworx solutions.
-            </p>
+          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            {messages.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center mt-20">
+                How can I help? Ask me about the Partner Hub, platform, sales materials, pricing, or anything about TrustedNetworx solutions.
+              </p>
+            ) : (
+              messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ${
+                    msg.role === "user"
+                      ? "bg-[var(--color-brand-primary)] text-white"
+                      : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))
+            )}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-xl px-3.5 py-2.5 text-sm text-gray-400 animate-pulse">Thinking...</div>
+              </div>
+            )}
           </div>
           <div className="p-4 border-t border-gray-200">
-            <input
-              type="text"
-              placeholder="Ask a question..."
-              aria-label="Ask a question"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)] focus:border-transparent"
-            />
+            <form onSubmit={handleSend} className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Ask a question..."
+                aria-label="Ask a question"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)] focus:border-transparent"
+              />
+              <button
+                type="submit"
+                disabled={sending || !input.trim()}
+                className="rounded-lg bg-[var(--color-brand-primary)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 flex-shrink-0"
+              >
+                Send
+              </button>
+            </form>
             <p className="text-[10px] text-gray-400 mt-2 text-center">
               Responses are generated using AI and may contain mistakes.
             </p>
