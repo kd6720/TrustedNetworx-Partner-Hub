@@ -60,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex-1 ml-64">
         <TopBar title={title} />
-        <main className="p-6 max-w-[1240px]">{children}</main>
+        <main id="main-content" className="p-6 max-w-[1240px]">{children}</main>
       </div>
 
       {/* AI Assistant FAB */}

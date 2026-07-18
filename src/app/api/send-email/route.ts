@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { decrypt } from "@/lib/crypto";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email connection not found or not authorized" }, { status: 404 });
     }
 
-    // Decrypt the password (base64 currently — upgrade to AES-256-GCM in production)
-    const smtpPass = Buffer.from(conn.smtp_password_enc, "base64").toString("utf-8");
+    // Decrypt using AES-256-GCM
+    const smtpPass = decrypt(conn.smtp_password_enc);
 
     // Create transporter
     const transporter = nodemailer.createTransport({
