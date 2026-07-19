@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/sidebar";
 import TopBar from "@/components/topbar";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const pageTitles: Record<string, string> = {
@@ -38,6 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, loading } = useAuth();
   const title = pageTitles[pathname] || "TrustedNetworx Partner Hub";
+  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = useState("");
@@ -87,8 +88,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 ml-64">
+      {/* Desktop sidebar */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile hamburger */}
+      <div className="md:hidden fixed top-3 left-3 z-50">
+        <button
+          onClick={() => setMobileSidebar(!mobileSidebar)}
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white shadow-lg"
+          aria-label="Toggle menu"
+        >
+          {mobileSidebar ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {mobileSidebar && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileSidebar(false)} />
+          <div className="relative z-50">
+            <Sidebar onNavigate={() => setMobileSidebar(false)} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 md:ml-64">"
         <TopBar title={title} />
         <main id="main-content" className="p-6 max-w-[1240px]">{children}</main>
       </div>

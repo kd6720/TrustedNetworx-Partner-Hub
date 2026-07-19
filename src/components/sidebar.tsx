@@ -33,7 +33,11 @@ const settingsSubItems = [
   { href: "/admin", label: "Admin Panel" },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(
@@ -43,6 +47,18 @@ export default function Sidebar() {
     pathname.startsWith("/kanban")
   );
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const closeMobile = () => {
+    setMobileOpen(false);
+    onNavigate?.();
+  };
+
+  // Close mobile sidebar on navigation
+  const handleNavClick = (cb?: () => void) => {
+    closeMobile();
+    cb?.();
+  };
 
   const isActive = (href: string) => pathname === href;
   const isAutomationActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -113,10 +129,10 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className={linkClass(href)}>
-            <Icon size={18} />
-            <span>{label}</span>
-          </Link>
+        <Link key={href} href={href} className={linkClass(href)} onClick={closeMobile}>
+          <Icon size={18} />
+          <span>{label}</span>
+        </Link>
         ))}
 
         {/* ── AI Automation ── */}
@@ -154,6 +170,7 @@ export default function Sidebar() {
                       ? "text-white bg-[var(--color-sidebar-active)]"
                       : "text-gray-400 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
                   }`}
+                  onClick={closeMobile}
                 >
                   {label}
                 </Link>
@@ -192,6 +209,7 @@ export default function Sidebar() {
                       ? "text-white bg-[var(--color-sidebar-active)]"
                       : "text-gray-400 hover:text-white hover:bg-[var(--color-sidebar-hover)]"
                   }`}
+                  onClick={closeMobile}
                 >
                   {label}
                 </Link>
