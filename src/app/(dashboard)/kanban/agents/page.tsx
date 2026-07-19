@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Clock, Loader2, ExternalLink, Activity } from "lucide-react";
+import { Zap, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Clock, Loader2, ExternalLink, Activity, Power, PowerOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Agent {
   id: string; name: string; endpoint_url: string | null; status: string;
   last_heartbeat: string | null; version: string | null; capabilities: string[];
+  is_active?: boolean;
 }
 
 export default function AgentConnectionsPage() {
@@ -83,6 +84,16 @@ export default function AgentConnectionsPage() {
   async function removeAgent(id: string) {
     await supabase.from("agent_connections").delete().eq("id", id);
     showToast("Agent removed");
+    loadAgents();
+  }
+
+  async function toggleAgent(id: string, currentActive: boolean) {
+    const newActive = !currentActive;
+    await supabase.from("agent_connections").update({
+      is_active: newActive,
+      status: newActive ? "connecting" : "disconnected",
+    }).eq("id", id);
+    showToast(newActive ? "Agent enabled" : "Agent disconnected");
     loadAgents();
   }
 
@@ -168,11 +179,13 @@ export default function AgentConnectionsPage() {
                     agent.status === "connected" ? "bg-green-100 text-green-600" :
                     agent.status === "error" ? "bg-red-100 text-red-600" :
                     agent.status === "connecting" ? "bg-blue-100 text-blue-600" :
+                    agent.status === "disconnected" ? "bg-amber-100 text-amber-600" :
                     "bg-gray-100 text-gray-400"
                   }`}>
                     {agent.status === "connected" ? <CheckCircle2 size={20} /> :
                      agent.status === "error" ? <XCircle size={20} /> :
                      agent.status === "connecting" ? <RefreshCw size={20} className="animate-spin" /> :
+                     agent.status === "disconnected" ? <PowerOff size={20} /> :
                      <Clock size={20} />}
                   </div>
                   <div>
@@ -202,6 +215,15 @@ export default function AgentConnectionsPage() {
               )}
 
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                {isManager && (
+                  <button onClick={() => toggleAgent(agent.id, agent.is_active !== false)}
+                    className={`text-xs flex items-center gap-1 ${
+                      agent.is_active !== false ? "text-amber-500 hover:text-amber-700" : "text-green-500 hover:text-green-700"
+                    }`}>
+                    {agent.is_active !== false ? <PowerOff size={11} /> : <Power size={11} />}
+                    {agent.is_active !== false ? "Disconnect" : "Enable"}
+                  </button>
+                )}
                 <button onClick={() => testConnection(agent.id, agent.endpoint_url)}
                   className="text-xs text-[var(--color-brand-primary)] hover:underline flex items-center gap-1">
                   <RefreshCw size={11} /> Test
