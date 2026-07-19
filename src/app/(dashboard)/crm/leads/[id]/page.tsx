@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import EmailTimeline from "@/components/EmailTimeline";
-import { ArrowLeft, DollarSign, Calendar, Target } from "lucide-react";
+import { ArrowLeft, DollarSign } from "lucide-react";
 import Link from "next/link";
+import type { Lead } from "@/lib/types";
 
 const statusColors: Record<string, string> = {
   new: "bg-gray-100 text-gray-700",
@@ -18,9 +19,9 @@ const statusColors: Record<string, string> = {
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [lead, setLead] = useState<any>(null);
+  const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function load() {
@@ -29,7 +30,7 @@ export default function LeadDetailPage() {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, supabase]);
 
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
   if (!lead) return <div className="text-center py-12 text-gray-400">Lead not found.</div>;
@@ -78,7 +79,7 @@ export default function LeadDetailPage() {
             linkedType="lead"
             linkedId={id}
             linkedName={lead.name}
-            linkedEmail={lead.contact_email}
+            linkedEmail={lead.contact_email ?? undefined}
           />
         </div>
       </div>

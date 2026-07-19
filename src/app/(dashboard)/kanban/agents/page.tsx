@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Zap, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Clock, Loader2, ExternalLink, Activity, Power, PowerOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,9 +11,20 @@ interface Agent {
   is_active?: boolean;
 }
 
+function timeAgo(date: string | null) {
+  if (!date) return "Never";
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 export default function AgentConnectionsPage() {
   const { profile } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -24,15 +35,20 @@ export default function AgentConnectionsPage() {
 
   const isManager = profile?.role === "admin" || profile?.role === "manager";
 
-  useEffect(() => { loadAgents(); }, []);
-
-  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000); }
-
-  async function loadAgents() {
+  const loadAgents = useCallback(async () => {
     const { data } = await supabase.from("agent_connections").select("*").order("created_at");
     if (data) setAgents(data as Agent[]);
     setLoading(false);
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    async function run() {
+      await loadAgents();
+    }
+    run();
+  }, [loadAgents]);
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000); }
 
   async function addAgent(e: React.FormEvent) {
     e.preventDefault();
@@ -95,17 +111,6 @@ export default function AgentConnectionsPage() {
     }).eq("id", id);
     showToast(newActive ? "Agent enabled" : "Agent disconnected");
     loadAgents();
-  }
-
-  function timeAgo(date: string | null) {
-    if (!date) return "Never";
-    const diff = Date.now() - new Date(date).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
   }
 
   if (loading) {

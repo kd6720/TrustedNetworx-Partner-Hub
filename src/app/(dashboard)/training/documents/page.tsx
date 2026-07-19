@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Download, Clock } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 
 export default function TrainingDocumentsPage() {
   return (

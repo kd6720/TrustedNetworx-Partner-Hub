@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Play, Pause, RefreshCw, Loader2, ChevronDown } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Play, Pause, RefreshCw, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Schedule {
@@ -23,14 +23,15 @@ export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadSchedules(); }, []);
-
-  async function loadSchedules() {
-    const supabase = createClient();
-    const { data } = await supabase.from("agent_schedules").select("*").order("created_at", { ascending: false });
-    if (data) setSchedules(data);
-    setLoading(false);
-  }
+  useEffect(() => {
+    async function loadSchedules() {
+      const supabase = createClient();
+      const { data } = await supabase.from("agent_schedules").select("*").order("created_at", { ascending: false });
+      if (data) setSchedules(data);
+      setLoading(false);
+    }
+    loadSchedules();
+  }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;

@@ -1,25 +1,49 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Bell, Check, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface TopBarProps { title: string; }
 
+interface NotificationRow {
+  id: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+}
+
 export default function TopBar({ title }: TopBarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [open, setOpen] = useState(false);
-  const [notifying, setNotifying] = useState<any[]>([]);
+  const [notifying, setNotifying] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
+  const loadNotifications = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("notifications").select("*")
+      .eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
+    if (data) {
+      const rows: NotificationRow[] = data;
+      setNotifying(rows);
+      setUnread(rows.filter((n) => !n.read).length);
+    }
+  }, [supabase]);
+
   useEffect(() => {
-    loadNotifications();
+    async function init() {
+      await loadNotifications();
+    }
+    init();
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadNotifications]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -28,17 +52,6 @@ export default function TopBar({ title }: TopBarProps) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  async function loadNotifications() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from("notifications").select("*")
-      .eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
-    if (data) {
-      setNotifying(data);
-      setUnread(data.filter((n: any) => !n.read).length);
-    }
-  }
 
   async function markRead(id: string) {
     await supabase.from("notifications").update({ read: true }).eq("id", id);

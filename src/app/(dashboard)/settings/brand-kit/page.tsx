@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Palette, Upload, Building2, Eye, Loader2, CheckCircle, AlertCircle, Image } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import NextImage from "next/image";
+import { Palette, Upload, Building2, Eye, Loader2, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -9,7 +10,7 @@ const DEFAULTS = { primary: "#06b6d4", accent: "#0891b2", sidebar: "#0f172a" };
 
 export default function BrandKitPage() {
   const { profile } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -28,19 +29,14 @@ export default function BrandKitPage() {
 
   const isManager = profile?.role === "admin" || profile?.role === "manager";
 
-  useEffect(() => { loadBranding(); }, [profile?.account_id]);
+  const accountId = profile?.account_id;
 
-  function showToast(type: "success" | "error", message: string) {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 4000);
-  }
-
-  async function loadBranding() {
-    if (!profile?.account_id) { setLoading(false); return; }
+  const loadBranding = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
     const { data } = await supabase
       .from("account_branding")
       .select("*")
-      .eq("account_id", profile.account_id)
+      .eq("account_id", accountId)
       .single();
 
     if (data) {
@@ -51,6 +47,18 @@ export default function BrandKitPage() {
       setSidebarColor(data.sidebar_color || DEFAULTS.sidebar);
     }
     setLoading(false);
+  }, [accountId, supabase]);
+
+  useEffect(() => {
+    async function run() {
+      await loadBranding();
+    }
+    run();
+  }, [loadBranding]);
+
+  function showToast(type: "success" | "error", message: string) {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
   }
 
   async function uploadLogo(file: File) {
@@ -59,7 +67,7 @@ export default function BrandKitPage() {
     const path = `${profile.account_id}/logo.${ext}`;
 
     setLogoUploading(true);
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("branding")
       .upload(path, file, { upsert: true, cacheControl: "3600" });
 
@@ -177,7 +185,7 @@ export default function BrandKitPage() {
         {/* Logo */}
         <div className="card p-6 mb-6">
           <div className="flex items-center gap-2 mb-6">
-            <Image size={20} className="text-gray-400" />
+            <ImageIcon size={20} className="text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900">Company Logo</h3>
           </div>
           <div className="flex items-center gap-6">
@@ -186,7 +194,7 @@ export default function BrandKitPage() {
               onClick={() => logoInputRef.current?.click()}
             >
               {logoUrl ? (
-                <img src={logoUrl} alt="Logo preview" className="h-full w-full object-contain p-2" />
+                <NextImage src={logoUrl} alt="Logo preview" width={96} height={96} unoptimized className="h-full w-full object-contain p-2" />
               ) : logoUploading ? (
                 <Loader2 size={20} className="animate-spin" />
               ) : (
@@ -251,7 +259,7 @@ export default function BrandKitPage() {
               <div className="w-48 flex-shrink-0 flex flex-col p-4 gap-3" style={{ backgroundColor: sidebarColor }}>
                 <div className="flex items-center gap-2 mb-2">
                   {logoUrl ? (
-                    <img src={logoUrl} alt="logo" className="h-6 w-6 rounded object-contain bg-white/10" />
+                    <NextImage src={logoUrl} alt="Company logo" width={24} height={24} unoptimized className="h-6 w-6 rounded object-contain bg-white/10" />
                   ) : (
                     <div className="h-6 w-6 rounded" style={{ backgroundColor: primaryColor }} />
                   )}

@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import EmailTimeline from "@/components/EmailTimeline";
 import { ArrowLeft, Globe, Users, Target, Building2 } from "lucide-react";
 import Link from "next/link";
+import type { Company } from "@/lib/types";
 
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [company, setCompany] = useState<any>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [leadCount, setLeadCount] = useState(0);
   const [contactCount, setContactCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function load() {
@@ -29,7 +30,7 @@ export default function CompanyDetailPage() {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, supabase]);
 
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
   if (!company) return <div className="text-center py-12 text-gray-400">Company not found.</div>;

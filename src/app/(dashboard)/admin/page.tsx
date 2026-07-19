@@ -1,32 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, XCircle, Shield, Clock, UserPlus, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { PendingRegistration } from "@/lib/types";
 
 export default function AdminPage() {
   const { profile } = useAuth();
-  const [pending, setPending] = useState<any[]>([]);
-  const [approved, setApproved] = useState<any[]>([]);
+  const [pending, setPending] = useState<PendingRegistration[]>([]);
+  const [approved, setApproved] = useState<PendingRegistration[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     const [pRes, aRes] = await Promise.all([
       supabase.from("pending_registrations").select("*").eq("status", "pending").order("created_at", { ascending: false }),
       supabase.from("pending_registrations").select("*").order("created_at", { ascending: false }).limit(20),
     ]);
     setPending(pRes.data || []);
-    setApproved((aRes.data || []).filter((r: any) => r.status !== "pending"));
+    setApproved(((aRes.data || []) as PendingRegistration[]).filter((r) => r.status !== "pending"));
     setLoading(false);
-  }
+  }, [supabase]);
 
-  async function handleApprove(id: string, email: string, domain: string, companyName: string) {
+  useEffect(() => {
+    async function load() {
+      await loadData();
+    }
+    load();
+  }, [loadData]);
+
+  async function handleApprove(id: string, email: string, domain: string, companyName: string | null) {
     // Update registration status
     await supabase.from("pending_registrations").update({
       status: "approved",
@@ -97,7 +101,7 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {pending.map((r: any) => (
+            {pending.map((r) => (
               <div key={r.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-4">
                 <div>
                   <p className="font-medium text-gray-900">{r.full_name || r.email}</p>
@@ -140,7 +144,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {approved.map((r: any) => (
+              {approved.map((r) => (
                 <tr key={r.id} className="border-b border-gray-50">
                   <td className="py-3 pr-4 font-medium text-gray-900">{r.full_name || "—"}</td>
                   <td className="py-3 pr-4 text-gray-500">{r.email}</td>
@@ -175,7 +179,6 @@ export default function AdminPage() {
             const input = form.elements.namedItem("inviteEmail") as HTMLInputElement;
             const inviteEmail = input.value;
             if (!inviteEmail) return;
-            const domain = inviteEmail.split("@")[1];
             const res = await fetch("/api/admin/invite", {
               method: "POST",
               headers: { "Content-Type": "application/json" },

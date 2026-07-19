@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Check, Loader2, ChevronRight } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Subtask {
@@ -23,28 +23,29 @@ export default function SubtaskSection({ taskId, boardId, columnId }: Props) {
   const [newTitle, setNewTitle] = useState("");
   const [percent, setPercent] = useState(0);
 
-  useEffect(() => { loadSubtasks(); }, [taskId]);
+  useEffect(() => {
+    async function loadSubtasks() {
+      const { data } = await supabase
+        .from("kanban_tasks")
+        .select("id, title")
+        .eq("parent_id", taskId)
+        .order("sort_order");
 
-  async function loadSubtasks() {
-    const { data } = await supabase
-      .from("kanban_tasks")
-      .select("id, title")
-      .eq("parent_id", taskId)
-      .order("sort_order");
+      const subs = (data || []).map(t => ({ id: t.id, title: t.title, completed: false }));
+      setSubtasks(subs);
 
-    const subs = (data || []).map(t => ({ id: t.id, title: t.title, completed: false }));
-    setSubtasks(subs);
+      // Load parent completion percentage
+      const { data: parent } = await supabase
+        .from("kanban_tasks")
+        .select("completion_percentage")
+        .eq("id", taskId)
+        .single();
 
-    // Load parent completion percentage
-    const { data: parent } = await supabase
-      .from("kanban_tasks")
-      .select("completion_percentage")
-      .eq("id", taskId)
-      .single();
-
-    if (parent) setPercent(parent.completion_percentage || 0);
-    setLoading(false);
-  }
+      if (parent) setPercent(parent.completion_percentage || 0);
+      setLoading(false);
+    }
+    loadSubtasks();
+  }, [supabase, taskId]);
 
   async function addSubtask() {
     const title = newTitle.trim();

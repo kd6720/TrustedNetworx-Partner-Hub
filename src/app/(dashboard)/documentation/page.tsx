@@ -1,24 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Search, CheckCircle2, ChevronLeft, ChevronRight, Monitor, Clock, BookOpen, FileEdit } from "lucide-react";
-import { docSections, type DocSection, type Lesson } from "@/data/documentation";
+import { docSections } from "@/data/documentation";
+
+// Completions are persisted in localStorage, exposed as an external store
+const COMPLETED_KEY = "docs_completed";
+const COMPLETED_EVENT = "docs-completed-updated";
+const EMPTY_COMPLETED: string[] = [];
+let completedCacheRaw: string | null = null;
+let completedCache: string[] = EMPTY_COMPLETED;
+
+function subscribeToCompleted(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(COMPLETED_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(COMPLETED_EVENT, onChange);
+  };
+}
+
+function getCompletedSnapshot(): string[] {
+  const raw = localStorage.getItem(COMPLETED_KEY);
+  if (raw !== completedCacheRaw) {
+    completedCacheRaw = raw;
+    completedCache = raw ? JSON.parse(raw) : EMPTY_COMPLETED;
+  }
+  return completedCache;
+}
+
+function getCompletedServerSnapshot(): string[] {
+  return EMPTY_COMPLETED;
+}
 
 export default function DocumentationPage() {
   const [activeSection, setActiveSection] = useState(0);
   const [activeLesson, setActiveLesson] = useState(0);
-  const [completed, setCompleted] = useState<string[]>([]);
-
-  // Persist completions in localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("docs_completed");
-    if (saved) setCompleted(JSON.parse(saved));
-  }, []);
+  const completed = useSyncExternalStore(subscribeToCompleted, getCompletedSnapshot, getCompletedServerSnapshot);
 
   function markComplete(title: string) {
     const next = completed.includes(title) ? completed : [...completed, title];
-    setCompleted(next);
-    localStorage.setItem("docs_completed", JSON.stringify(next));
+    localStorage.setItem(COMPLETED_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(COMPLETED_EVENT));
   }
 
   function isComplete(title: string) { return completed.includes(title); }

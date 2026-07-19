@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Filter, Plus, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -26,7 +26,7 @@ interface Opportunity {
 }
 
 export default function OpportunitiesContent() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const searchParams = useSearchParams();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,18 +47,30 @@ export default function OpportunitiesContent() {
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
 
-  useEffect(() => { loadOpportunities(); }, []);
-
-  async function loadOpportunities() {
+  const loadOpportunities = useCallback(async () => {
     const { data } = await supabase.from("opportunities").select("*").order("created_at", { ascending: false });
     if (data) setOpportunities(data as Opportunity[]);
     setLoading(false);
-  }
+  }, [supabase]);
 
-  // Auto-open modal when navigating from header (+ Register opportunity)
   useEffect(() => {
-    if (searchParams.get("create") === "true") openModal();
-  }, [searchParams]);
+    async function run() { await loadOpportunities(); }
+    run();
+  }, [loadOpportunities]);
+
+  // Auto-open modal when navigating from header (+ Register opportunity).
+  // "Adjust state during render" pattern (react.dev) — avoids setState-in-effect.
+  const shouldAutoOpen = searchParams.get("create") === "true";
+  const [prevAutoOpen, setPrevAutoOpen] = useState(false);
+  if (shouldAutoOpen !== prevAutoOpen) {
+    setPrevAutoOpen(shouldAutoOpen);
+    if (shouldAutoOpen) {
+      setCompanyName(""); setStageState(1); setLines(1); setMrcPerLine(40);
+      setVertical(""); setContactName(""); setContactEmail(""); setNotes("");
+      setFormErrors({});
+      setShowModal(true);
+    }
+  }
 
   function showToast(type: "success" | "error", msg: string) {
     setToast({ type, msg });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -20,8 +20,7 @@ interface Opp {
 
 export default function DealDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [opp, setOpp] = useState<Opp | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,9 +32,7 @@ export default function DealDetailPage() {
   const [mrc, setMrc] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => { loadDeal(); }, [params.id]);
-
-  async function loadDeal() {
+  const loadDeal = useCallback(async () => {
     const { data } = await supabase.from("opportunities").select("*").eq("id", params.id).single();
     if (data) {
       setOpp(data as Opp);
@@ -44,7 +41,12 @@ export default function DealDetailPage() {
       setMrc(data.mrc_per_line || 0);
     }
     setLoading(false);
-  }
+  }, [params.id, supabase]);
+
+  useEffect(() => {
+    async function run() { await loadDeal(); }
+    run();
+  }, [loadDeal]);
 
   function showToast(type: "success" | "error", msg: string) {
     setToast({ type, msg }); setTimeout(() => setToast(null), 3000);

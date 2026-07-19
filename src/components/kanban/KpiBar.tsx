@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  CheckCircle2, AlertCircle, Clock, Play, Pause, RefreshCw, Activity,
-  Calendar, XCircle, Zap, Loader2,
+  CheckCircle2, AlertCircle, Clock, Play, Activity,
+  Calendar, XCircle, Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -23,44 +23,45 @@ export default function KpiBar() {
   const [data, setData] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadKpis(); }, []);
+  useEffect(() => {
+    async function loadKpis() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
 
-  async function loadKpis() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+        const today = new Date().toISOString().split("T")[0];
 
-      const today = new Date().toISOString().split("T")[0];
+        const [
+          activeRes, dueRes, overdueRes, completedRes,
+          activeSchedRes, failedSchedRes, upcomingRes,
+          agentRes, totalAgentRes,
+        ] = await Promise.all([
+          supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).not("column_id", "is", null),
+          supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).eq("due_date", today),
+          supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).lt("due_date", today).not("column_id", "is", null),
+          supabase.from("kanban_activity_log").select("*", { count: "exact", head: true }).eq("action", "column_change").eq("new_value", "Completed").gte("created_at", `${today}T00:00:00`),
+          supabase.from("agent_schedules").select("*", { count: "exact", head: true }).eq("is_active", true),
+          supabase.from("agent_schedules").select("*", { count: "exact", head: true }).eq("last_status", "failure"),
+          supabase.from("agent_schedules").select("*", { count: "exact", head: true }).gt("next_run_at", new Date().toISOString()).lt("next_run_at", new Date(Date.now() + 86400000).toISOString()),
+          supabase.from("agent_connections").select("*", { count: "exact", head: true }).eq("status", "connected"),
+          supabase.from("agent_connections").select("*", { count: "exact", head: true }),
+        ]);
 
-      const [
-        activeRes, dueRes, overdueRes, completedRes,
-        activeSchedRes, failedSchedRes, upcomingRes,
-        agentRes, totalAgentRes,
-      ] = await Promise.all([
-        supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).not("column_id", "is", null),
-        supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).eq("due_date", today),
-        supabase.from("kanban_tasks").select("*", { count: "exact", head: true }).lt("due_date", today).not("column_id", "is", null),
-        supabase.from("kanban_activity_log").select("*", { count: "exact", head: true }).eq("action", "column_change").eq("new_value", "Completed").gte("created_at", `${today}T00:00:00`),
-        supabase.from("agent_schedules").select("*", { count: "exact", head: true }).eq("is_active", true),
-        supabase.from("agent_schedules").select("*", { count: "exact", head: true }).eq("last_status", "failure"),
-        supabase.from("agent_schedules").select("*", { count: "exact", head: true }).gt("next_run_at", new Date().toISOString()).lt("next_run_at", new Date(Date.now() + 86400000).toISOString()),
-        supabase.from("agent_connections").select("*", { count: "exact", head: true }).eq("status", "connected"),
-        supabase.from("agent_connections").select("*", { count: "exact", head: true }),
-      ]);
-
-      setData({
-        activeTasks: activeRes.count || 0,
-        dueToday: dueRes.count || 0,
-        overdue: overdueRes.count || 0,
-        completedToday: completedRes.count || 0,
-        activeSchedules: activeSchedRes.count || 0,
-        failedSchedules: failedSchedRes.count || 0,
-        upcomingRuns: upcomingRes.count || 0,
-        agentStatus: { online: agentRes.count || 0, total: totalAgentRes.count || 0 },
-      });
-    } catch { /* silent */ }
-    setLoading(false);
-  }
+        setData({
+          activeTasks: activeRes.count || 0,
+          dueToday: dueRes.count || 0,
+          overdue: overdueRes.count || 0,
+          completedToday: completedRes.count || 0,
+          activeSchedules: activeSchedRes.count || 0,
+          failedSchedules: failedSchedRes.count || 0,
+          upcomingRuns: upcomingRes.count || 0,
+          agentStatus: { online: agentRes.count || 0, total: totalAgentRes.count || 0 },
+        });
+      } catch { /* silent */ }
+      setLoading(false);
+    }
+    loadKpis();
+  }, [supabase]);
 
   if (loading) return null;
 

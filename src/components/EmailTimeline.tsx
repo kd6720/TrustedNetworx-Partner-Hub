@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Mail, Send, ArrowDown, ArrowUp, Clock, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import ComposeModal from "@/components/ComposeModal";
+
+interface EmailActivity {
+  id: string;
+  direction: "sent" | "received";
+  subject: string | null;
+  snippet: string | null;
+  status: string | null;
+  error_message: string | null;
+  to_addresses: string[] | null;
+  from_name: string | null;
+  from_address: string | null;
+  created_at: string;
+}
 
 interface Props {
   linkedType: "contact" | "lead" | "opportunity" | "company";
@@ -14,16 +26,12 @@ interface Props {
 }
 
 export default function EmailTimeline({ linkedType, linkedId, linkedName, linkedEmail }: Props) {
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<EmailActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadActivities();
-  }, [linkedId, linkedType]);
-
-  async function loadActivities() {
+  const loadActivities = useCallback(async () => {
     const { data } = await supabase
       .from("email_activities")
       .select("*")
@@ -33,7 +41,14 @@ export default function EmailTimeline({ linkedType, linkedId, linkedName, linked
       .limit(20);
     setActivities(data || []);
     setLoading(false);
-  }
+  }, [supabase, linkedType, linkedId]);
+
+  useEffect(() => {
+    async function init() {
+      await loadActivities();
+    }
+    init();
+  }, [loadActivities]);
 
   function formatDate(d: string) {
     const date = new Date(d);

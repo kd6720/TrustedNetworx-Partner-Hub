@@ -41,6 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
+    async function fetchProfile(userId: string) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, email, full_name, role, account_id, phone, title, preferences")
+        .eq("id", userId)
+        .single();
+      setProfile(data);
+      setLoading(false);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -56,17 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, role, account_id, phone, title, preferences")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
-    setLoading(false);
-  }
+  }, [supabase]);
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

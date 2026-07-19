@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Zap } from "lucide-react";
@@ -13,14 +13,10 @@ function RecoveryForm() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isToken, setIsToken] = useState(false);
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    // Detect if user arrived via reset link
-    const token = searchParams.get("token");
-    if (token) setIsToken(true);
-  }, [searchParams]);
+  // Detect if user arrived via reset link
+  const isToken = Boolean(searchParams.get("token"));
 
   // Step 1: Request reset
   async function handleRequestReset(e: React.FormEvent) {

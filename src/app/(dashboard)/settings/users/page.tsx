@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Mail, X, Shield, User, Loader2, CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Mail, X, Shield, Loader2, CheckCircle, AlertCircle, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,7 +24,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function UsersPage() {
   const { profile: me } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,27 +37,35 @@ export default function UsersPage() {
   const isManager = me?.role === "admin" || me?.role === "manager";
   const isAdmin = me?.role === "admin";
 
-  useEffect(() => { loadUsers(); }, [me?.account_id]);
+  const myAccountId = me?.account_id;
+  const myRole = me?.role;
 
-  function showToast(type: "success" | "error", message: string) {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 4000);
-  }
-
-  async function loadUsers() {
-    if (!me?.account_id && me?.role !== "admin") { setLoading(false); return; }
+  const loadUsers = useCallback(async () => {
+    if (!myAccountId && myRole !== "admin") { setLoading(false); return; }
 
     let query = supabase.from("profiles").select("id, email, full_name, role, account_id, phone, title, is_active").eq("is_active", true);
 
-    if (me?.role === "admin") {
+    if (myRole === "admin") {
       // Admin sees all users
-    } else if (me?.account_id) {
-      query = query.eq("account_id", me.account_id);
+    } else if (myAccountId) {
+      query = query.eq("account_id", myAccountId);
     }
 
     const { data, error } = await query.order("role").order("full_name");
     if (!error && data) setUsers(data as Profile[]);
     setLoading(false);
+  }, [myAccountId, myRole, supabase]);
+
+  useEffect(() => {
+    async function run() {
+      await loadUsers();
+    }
+    run();
+  }, [loadUsers]);
+
+  function showToast(type: "success" | "error", message: string) {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
   }
 
   async function inviteUser(e: React.FormEvent) {
@@ -245,21 +253,36 @@ export default function UsersPage() {
   );
 }
 
+interface RegistrationRequest {
+  id: string;
+  full_name: string;
+  work_email: string;
+  company: string;
+  link: string | null;
+  status: string;
+  created_at: string;
+}
+
 function PendingRegistrations() {
-  const supabase = createClient();
-  const [pending, setPending] = useState<any[]>([]);
+  const supabase = useMemo(() => createClient(), []);
+  const [pending, setPending] = useState<RegistrationRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadPending(); }, []);
-
-  async function loadPending() {
+  const loadPending = useCallback(async () => {
     const { data } = await supabase.from("registration_requests").select("*")
       .eq("status", "pending").order("created_at", { ascending: false });
     setPending(data || []);
     setLoading(false);
-  }
+  }, [supabase]);
 
-  async function handleApprove(req: any) {
+  useEffect(() => {
+    async function run() {
+      await loadPending();
+    }
+    run();
+  }, [loadPending]);
+
+  async function handleApprove(req: RegistrationRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("registration_requests").update({
       status: "approved", reviewed_by: user?.id, reviewed_at: new Date().toISOString()
@@ -275,7 +298,7 @@ function PendingRegistrations() {
     loadPending();
   }
 
-  async function handleReject(req: any) {
+  async function handleReject(req: RegistrationRequest) {
     await supabase.from("registration_requests").update({
       status: "rejected", reviewed_at: new Date().toISOString()
     }).eq("id", req.id);

@@ -6,11 +6,9 @@ import {
   type DropResult, type DroppableProvided, type DraggableProvided,
 } from "@hello-pangea/dnd";
 import {
-  Plus, MoreHorizontal, Calendar, Clock, User, Tag, Trash2,
-  Layout, ChevronDown, Search, Star, Archive, Loader2, X, GripVertical,
-  AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowRight, PanelRight,
+  Plus, Calendar, Trash2,
+  Layout, ChevronDown, Search, Star, Loader2, X, GripVertical,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import KpiBar from "@/components/kanban/KpiBar";
 import SubtaskSection from "@/components/kanban/SubtaskSection";
 
@@ -42,8 +40,6 @@ const COLUMN_COLORS: Record<string, string> = {
 };
 
 export default function KanbanPage() {
-  const supabase = createClient();
-
   const [boards, setBoards] = useState<Board[]>([]);
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -62,29 +58,33 @@ export default function KanbanPage() {
   const activeBoard = boards.find(b => b.id === activeBoardId);
 
   // Load boards
-  useEffect(() => { loadBoards(); }, []);
-
-  async function loadBoards() {
+  const loadBoards = useCallback(async () => {
     const res = await fetch("/api/kanban/boards");
     const data = await res.json();
     if (Array.isArray(data)) {
       setBoards(data);
-      if (data.length > 0 && !activeBoardId) setActiveBoardId(data[0].id);
+      if (data.length > 0) setActiveBoardId(prev => prev ?? data[0].id);
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    async function run() {
+      await loadBoards();
+    }
+    run();
+  }, [loadBoards]);
 
   // Load tasks when board changes
   useEffect(() => {
     if (!activeBoardId) return;
+    async function loadTasks(boardId: string) {
+      const res = await fetch(`/api/kanban/tasks?board_id=${boardId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setTasks(data);
+    }
     loadTasks(activeBoardId);
   }, [activeBoardId]);
-
-  async function loadTasks(boardId: string) {
-    const res = await fetch(`/api/kanban/tasks?board_id=${boardId}`);
-    const data = await res.json();
-    if (Array.isArray(data)) setTasks(data);
-  }
 
   async function createBoard() {
     if (!newBoardName.trim()) return;

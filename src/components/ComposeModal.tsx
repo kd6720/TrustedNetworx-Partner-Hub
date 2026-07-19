@@ -1,9 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Send, Paperclip, Loader2, Mail } from "lucide-react";
+import { X, Send, Paperclip, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface EmailConnection {
+  id: string;
+  email_address: string;
+  is_default: boolean | null;
+}
 
 interface ComposeModalProps {
   isOpen: boolean;
@@ -16,33 +22,45 @@ interface ComposeModalProps {
   linkedName?: string;
 }
 
-export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject: initialSubject, linkedType, linkedId, linkedName }: ComposeModalProps) {
+export default function ComposeModal({ isOpen, toEmail, subject, ...rest }: ComposeModalProps) {
+  if (!isOpen) return null;
+  // Remount the modal content whenever it opens or its target changes so all
+  // fields reset, matching the previous reset-on-open behavior.
+  return (
+    <ComposeModalContent
+      key={`${toEmail ?? ""}|${subject ?? ""}`}
+      toEmail={toEmail}
+      subject={subject}
+      {...rest}
+    />
+  );
+}
+
+function ComposeModalContent({ onClose, toEmail, subject: initialSubject, linkedType, linkedId, linkedName }: Omit<ComposeModalProps, "isOpen">) {
   const { profile } = useAuth();
-  const [to, setTo] = useState("");
-  const [subject, setSubject] = useState("");
+  const [to, setTo] = useState(toEmail || "");
+  const [subject, setSubject] = useState(initialSubject || "");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [connections, setConnections] = useState<any[]>([]);
+  const [connections, setConnections] = useState<EmailConnection[]>([]);
   const [selectedConnection, setSelectedConnection] = useState<string>("");
   const supabase = createClient();
+  const profileId = profile?.id;
 
   useEffect(() => {
-    if (isOpen) {
-      loadConnections();
-      setTo(toEmail || "");
-      setSubject(initialSubject || "");
-      setBody("");
-      setError("");
+    let cancelled = false;
+    async function loadConnections() {
+      const { data } = await supabase.from("email_connections").select("*").eq("user_id", profileId).eq("is_active", true);
+      if (cancelled) return;
+      const rows: EmailConnection[] = data || [];
+      setConnections(rows);
+      const defaultConn = rows.find((c) => c.is_default);
+      setSelectedConnection(defaultConn?.id || rows[0]?.id || "");
     }
-  }, [isOpen, toEmail, initialSubject]);
-
-  async function loadConnections() {
-    const { data } = await supabase.from("email_connections").select("*").eq("user_id", profile?.id).eq("is_active", true);
-    setConnections(data || []);
-    const defaultConn = data?.find((c: any) => c.is_default);
-    setSelectedConnection(defaultConn?.id || data?.[0]?.id || "");
-  }
+    loadConnections();
+    return () => { cancelled = true; };
+  }, [supabase, profileId]);
 
   async function handleSend() {
     if (!to || !subject || !selectedConnection) {
@@ -75,8 +93,6 @@ export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject
     setSending(false);
   }
 
-  if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/40" onClick={onClose}>
       <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-200" onClick={e => e.stopPropagation()}>
@@ -94,7 +110,7 @@ export default function ComposeModal({ isOpen, onClose, toEmail, toName, subject
           <div className="px-5 pt-3">
             <select value={selectedConnection} onChange={e => setSelectedConnection(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 bg-gray-50">
-              {connections.map((c: any) => (
+              {connections.map((c) => (
                 <option key={c.id} value={c.id}>{c.email_address}</option>
               ))}
             </select>

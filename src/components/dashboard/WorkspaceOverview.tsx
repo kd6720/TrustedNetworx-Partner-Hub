@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Layout, Plus, UserPlus, Zap, Clock, Loader2, ArrowRight } from "lucide-react";
+import { Layout, Zap, Clock, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -19,50 +19,51 @@ export default function WorkspaceOverview() {
   const [upcoming, setUpcoming] = useState<UpcomingSchedule[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Recent tasks
+        const { data: tasks } = await supabase
+          .from("kanban_tasks")
+          .select("id, title, priority, board_id, column_id, updated_at")
+          .is("parent_id", null)
+          .order("updated_at", { ascending: false })
+          .limit(5);
 
-  async function loadData() {
-    try {
-      // Recent tasks
-      const { data: tasks } = await supabase
-        .from("kanban_tasks")
-        .select("id, title, priority, board_id, column_id, updated_at")
-        .is("parent_id", null)
-        .order("updated_at", { ascending: false })
-        .limit(5);
+        if (tasks?.length) {
+          // Enrich with board/column names
+          const boardIds = [...new Set(tasks.map(t => t.board_id))];
+          const colIds = [...new Set(tasks.map(t => t.column_id))];
+          const [{ data: boards }, { data: columns }] = await Promise.all([
+            supabase.from("kanban_boards").select("id, name, color").in("id", boardIds),
+            supabase.from("kanban_columns").select("id, name").in("id", colIds),
+          ]);
 
-      if (tasks?.length) {
-        // Enrich with board/column names
-        const boardIds = [...new Set(tasks.map(t => t.board_id))];
-        const colIds = [...new Set(tasks.map(t => t.column_id))];
-        const [{ data: boards }, { data: columns }] = await Promise.all([
-          supabase.from("kanban_boards").select("id, name, color").in("id", boardIds),
-          supabase.from("kanban_columns").select("id, name").in("id", colIds),
-        ]);
+          const boardMap = Object.fromEntries((boards || []).map(b => [b.id, { name: b.name, color: b.color }]));
+          const colMap = Object.fromEntries((columns || []).map(c => [c.id, c.name]));
 
-        const boardMap = Object.fromEntries((boards || []).map(b => [b.id, { name: b.name, color: b.color }]));
-        const colMap = Object.fromEntries((columns || []).map(c => [c.id, c.name]));
+          setRecentTasks(tasks.map(t => ({
+            ...t,
+            board_name: boardMap[t.board_id]?.name || "Board",
+            board_color: boardMap[t.board_id]?.color || "#6366f1",
+            column_name: colMap[t.column_id] || "—",
+          })));
+        }
 
-        setRecentTasks(tasks.map(t => ({
-          ...t,
-          board_name: boardMap[t.board_id]?.name || "Board",
-          board_color: boardMap[t.board_id]?.color || "#6366f1",
-          column_name: colMap[t.column_id] || "—",
-        })));
-      }
+        // Upcoming schedules
+        const { data: schedules } = await supabase
+          .from("agent_schedules")
+          .select("id, name, next_run_at, schedule_expression")
+          .eq("is_active", true)
+          .order("next_run_at")
+          .limit(5);
 
-      // Upcoming schedules
-      const { data: schedules } = await supabase
-        .from("agent_schedules")
-        .select("id, name, next_run_at, schedule_expression")
-        .eq("is_active", true)
-        .order("next_run_at")
-        .limit(5);
-
-      if (schedules) setUpcoming(schedules);
-    } catch { /* silent */ }
-    setLoading(false);
-  }
+        if (schedules) setUpcoming(schedules);
+      } catch { /* silent */ }
+      setLoading(false);
+    }
+    loadData();
+  }, [supabase]);
 
   if (loading) {
     return <div className="card p-6 mb-6 flex items-center justify-center min-h-[200px]"><Loader2 size={20} className="animate-spin text-gray-400" /></div>;

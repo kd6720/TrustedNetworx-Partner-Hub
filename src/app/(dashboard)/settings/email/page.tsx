@@ -1,18 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Mail, Plus, CheckCircle2, XCircle, Trash2, ExternalLink } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Mail, Plus, Trash2, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const PROVIDERS = ["gmail", "outlook", "smtp"] as const;
 
+interface EmailConnection {
+  id: string;
+  provider: string;
+  email_address: string;
+  display_name: string | null;
+  smtp_host: string;
+  smtp_port: number;
+  imap_host: string | null;
+  imap_port: number | null;
+  is_default: boolean | null;
+  is_active: boolean;
+}
+
 export default function EmailSettingsPage() {
   const { profile } = useAuth();
-  const [connections, setConnections] = useState<any[]>([]);
+  const [connections, setConnections] = useState<EmailConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // New connection form
   const [provider, setProvider] = useState<"gmail" | "outlook" | "smtp">("smtp");
@@ -29,13 +42,20 @@ export default function EmailSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => { loadConnections(); }, []);
+  const userId = profile?.id;
 
-  async function loadConnections() {
-    const { data } = await supabase.from("email_connections").select("*").eq("user_id", profile?.id).order("created_at", { ascending: false });
+  const loadConnections = useCallback(async () => {
+    const { data } = await supabase.from("email_connections").select("*").eq("user_id", userId).order("created_at", { ascending: false });
     setConnections(data || []);
     setLoading(false);
-  }
+  }, [userId, supabase]);
+
+  useEffect(() => {
+    async function run() {
+      await loadConnections();
+    }
+    run();
+  }, [loadConnections]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -150,7 +170,7 @@ export default function EmailSettingsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {connections.map((c: any) => (
+            {connections.map((c) => (
               <div key={c.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">

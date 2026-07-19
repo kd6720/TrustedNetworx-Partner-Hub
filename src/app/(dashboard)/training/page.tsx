@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, FileText, BookOpen, Video, Download, ExternalLink, Clock } from "lucide-react";
+import { FileText, BookOpen, Video, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function TrainingPage() {

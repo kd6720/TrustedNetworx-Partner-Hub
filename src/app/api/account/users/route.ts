@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
@@ -31,8 +32,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only admins can create admin accounts" }, { status: 403 });
     }
 
-    // Send invite via Supabase Auth
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+    // Send invite via Supabase Auth — admin API requires the service-role key
+    // (the session client's anon key cannot call auth.admin.*)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { invited_by: user.id, role, account_id: profile.account_id },
     });
 

@@ -1,23 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Plus, ChevronRight, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Lead } from "@/lib/types";
 
 const statuses = ["All", "new", "contacted", "qualified", "proposal_sent", "won", "lost"];
 
 export default function LeadsPage() {
   const { profile } = useAuth();
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
   // Form state
@@ -29,16 +30,21 @@ export default function LeadsPage() {
   const [leadNotes, setLeadNotes] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => { loadLeads(); }, [search, statusFilter]);
-
-  async function loadLeads() {
+  const loadLeads = useCallback(async () => {
     let query = supabase.from("leads").select("*").order("created_at", { ascending: false });
     if (statusFilter !== "All") query = query.eq("status", statusFilter);
     if (search) query = query.ilike("name", `%${search}%`);
     const { data } = await query;
     setLeads(data || []);
     setLoading(false);
-  }
+  }, [supabase, search, statusFilter]);
+
+  useEffect(() => {
+    async function load() {
+      await loadLeads();
+    }
+    load();
+  }, [loadLeads]);
 
   function showToast(type: "success" | "error", msg: string) {
     setToast({ type, msg });
@@ -128,7 +134,7 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((l: any) => (
+              {leads.map((l) => (
                 <tr key={l.id} onClick={() => router.push(`/crm/leads/${l.id}`)}
                   className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer">
                   <td className="px-4 py-3 font-medium text-gray-900">{l.name}</td>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Code, Copy, ExternalLink, Plus } from "lucide-react";
+import { Copy, ExternalLink, Plus } from "lucide-react";
 
 export default function FormsPage() {
   return (

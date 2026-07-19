@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import EmailTimeline from "@/components/EmailTimeline";
-import { ArrowLeft, Mail, Phone, Building2 } from "lucide-react";
+import { ArrowLeft, Mail, Phone } from "lucide-react";
 import Link from "next/link";
+import type { Contact } from "@/lib/types";
 
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [contact, setContact] = useState<any>(null);
+  const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function load() {
@@ -20,7 +21,7 @@ export default function ContactDetailPage() {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, supabase]);
 
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
   if (!contact) return <div className="text-center py-12 text-gray-400">Contact not found.</div>;
@@ -53,7 +54,7 @@ export default function ContactDetailPage() {
         linkedType="contact"
         linkedId={id}
         linkedName={`${contact.first_name} ${contact.last_name}`}
-        linkedEmail={contact.email}
+        linkedEmail={contact.email ?? undefined}
       />
     </div>
   );

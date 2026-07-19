@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Contact } from "@/lib/types";
 
 export default function ContactsPage() {
   const { profile } = useAuth();
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function load() {
@@ -21,7 +22,7 @@ export default function ContactsPage() {
       setLoading(false);
     }
     load();
-  }, [search]);
+  }, [search, supabase]);
 
   return (
     <div className="space-y-6">
@@ -55,7 +56,7 @@ export default function ContactsPage() {
               </tr>
             </thead>
             <tbody>
-              {contacts.map((c: any) => (
+              {contacts.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer">
                   <td className="px-4 py-3 font-medium text-gray-900">{c.first_name} {c.last_name}</td>
                   <td className="px-4 py-3 text-gray-500">{c.email || "—"}</td>

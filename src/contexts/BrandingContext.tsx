@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Branding {
@@ -31,7 +31,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  async function loadBranding() {
+  const loadBranding = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
@@ -51,9 +51,14 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
     setBranding(data);
     setLoading(false);
-  }
+  }, [supabase]);
 
-  useEffect(() => { loadBranding(); }, []);
+  useEffect(() => {
+    async function init() {
+      await loadBranding();
+    }
+    init();
+  }, [loadBranding]);
 
   // Apply CSS variables when branding changes
   useEffect(() => {

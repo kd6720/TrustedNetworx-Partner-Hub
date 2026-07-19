@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BarChart3, TrendingUp, Users, Target, Building2, FileText, Phone, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Users, Target, Building2, FileText, Phone, Plus } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
+import type { Lead } from "@/lib/types";
+
+type RecentLead = Pick<Lead, "id" | "name" | "company_name" | "status" | "estimated_value" | "created_at">;
 
 export default function CrmPage() {
   const { profile } = useAuth();
   const [stats, setStats] = useState({ leads: 0, contacts: 0, companies: 0, won: 0 });
-  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function loadData() {
@@ -22,7 +25,7 @@ export default function CrmPage() {
         supabase.from("leads").select("id, name, company_name, status, estimated_value, created_at").order("created_at", { ascending: false }).limit(5),
       ]);
 
-      const won = leadsRes.data?.filter((l: any) => l.status === "won").length || 0;
+      const won = ((leadsRes.data ?? []) as Pick<Lead, "id" | "status">[]).filter((l) => l.status === "won").length || 0;
 
       setStats({
         leads: leadsRes.count || 0,
@@ -34,7 +37,7 @@ export default function CrmPage() {
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [supabase]);
 
   const isAdmin = profile?.role === "admin";
 
@@ -109,7 +112,7 @@ export default function CrmPage() {
               </tr>
             </thead>
             <tbody>
-              {recentLeads.map((l: any, i: number) => (
+              {recentLeads.map((l, i) => (
                 <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="py-3 pr-4 font-medium text-gray-900">{l.name}</td>
                   <td className="py-3 pr-4 text-gray-500">{l.company_name || "—"}</td>

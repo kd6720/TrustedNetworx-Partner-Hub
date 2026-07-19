@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { User, Lock, Bell, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -25,7 +25,10 @@ export default function AccountPage() {
     marketing: false,
   });
 
-  useEffect(() => {
+  // Re-sync form fields when the loaded profile changes (adjust state during render)
+  const [syncedProfile, setSyncedProfile] = useState(profile);
+  if (profile !== syncedProfile) {
+    setSyncedProfile(profile);
     if (profile) {
       setFullName(profile.full_name || "");
       setPhone(profile.phone || "");
@@ -42,7 +45,7 @@ export default function AccountPage() {
         } catch { /* ignore parse errors */ }
       }
     }
-  }, [profile]);
+  }
 
   function showToast(type: "success" | "error", message: string) {
     setToast({ type, message });
