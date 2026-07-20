@@ -98,7 +98,8 @@ export default function AgentConnectionsPage() {
   }
 
   async function removeAgent(id: string) {
-    await supabase.from("agent_connections").delete().eq("id", id);
+    const { error } = await supabase.from("agent_connections").delete().eq("id", id);
+    if (error) { showToast("Remove failed: " + error.message); return; }
     showToast("Agent removed");
     loadAgents();
   }
