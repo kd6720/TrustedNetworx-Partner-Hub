@@ -80,8 +80,8 @@ export default function AgentConnectionsPage() {
     loadAgents();
 
     try {
-      const res = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(5000) });
-      const ok = res.ok;
+      const res = await fetch(`/api/agent-health?url=${encodeURIComponent(endpoint)}`);
+      const { ok } = await res.json();
       await supabase.from("agent_connections").update({
         status: ok ? "connected" : "error",
         last_heartbeat: new Date().toISOString(),
